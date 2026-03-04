@@ -1,0 +1,65 @@
+{
+  "filename": "titanic_vocabulary_synonyms.csv",
+  "cards": [
+    {
+      "front": "Compel",
+      "back": "Force or oblige"
+    },
+    {
+      "front": "Inexorable",
+      "back": "Unstoppable or relentless"
+    },
+    {
+      "front": "Memorabilia",
+      "back": "Keepsakes or mementos"
+    },
+    {
+      "front": "Inadequacy",
+      "back": "Insufficiency or shortcoming"
+    },
+    {
+      "front": "Inept",
+      "back": "Incompetent or unskilled"
+    },
+    {
+      "front": "Lamentations",
+      "back": "Expressions of grief"
+    },
+    {
+      "front": "Inherent",
+      "back": "Intrinsic or built-in"
+    },
+    {
+      "front": "Chivalry",
+      "back": "Gallantry or courtesy"
+    },
+    {
+      "front": "Supremacy",
+      "back": "Dominance or superiority"
+    },
+    {
+      "front": "Precedence",
+      "back": "Priority or preference"
+    },
+    {
+      "front": "Errant",
+      "back": "Wayward or mistaken"
+    },
+    {
+      "front": "Assuage",
+      "back": "Soothe or relieve"
+    },
+    {
+      "front": "Unfathomable",
+      "back": "Incomprehensible or mysterious"
+    },
+    {
+      "front": "Debris",
+      "back": "Wreckage or rubble"
+    },
+    {
+      "front": "Exploit",
+      "back": "Take advantage of"
+    }
+  ]
+}
