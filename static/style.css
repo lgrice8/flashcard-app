@@ -1,0 +1,374 @@
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #0f172a;
+  --surface:    #1e293b;
+  --border:     #334155;
+  --accent:     #6366f1;
+  --accent-h:   #818cf8;
+  --danger:     #ef4444;
+  --success:    #22c55e;
+  --warn:       #f59e0b;
+  --text:       #f1f5f9;
+  --text-dim:   #94a3b8;
+  --card-bg:    #ffffff;
+  --card-text:  #1e293b;
+  --radius:     14px;
+  --shadow:     0 8px 32px rgba(0,0,0,.45);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1rem 2.5rem;
+  gap: 1.25rem;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+header {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -.5px;
+  background: linear-gradient(135deg, #818cf8, #38bdf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+#deck-status {
+  font-size: .78rem;
+  color: var(--text-dim);
+  flex: 1;
+  text-align: center;
+  padding: 0 .5rem;
+}
+
+#deck-status .badge {
+  display: inline-block;
+  font-size: .68rem;
+  background: var(--warn);
+  color: #000;
+  border-radius: 999px;
+  padding: .15em .65em;
+  margin-left: .4em;
+  font-weight: 600;
+}
+
+.btn-load {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: .45rem .9rem;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+  white-space: nowrap;
+}
+.btn-load:hover { background: var(--border); border-color: var(--accent); }
+
+/* ── Progress bar ─────────────────────────────────────────────────────────── */
+.progress-wrap {
+  width: 100%;
+  max-width: 640px;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: .8rem;
+  color: var(--text-dim);
+  margin-bottom: .4rem;
+}
+
+.progress-bar {
+  height: 4px;
+  background: var(--surface);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #38bdf8);
+  border-radius: 999px;
+  transition: width .35s ease;
+}
+
+/* ── Flashcard ─────────────────────────────────────────────────────────────── */
+.card-wrap {
+  width: 100%;
+  max-width: 640px;
+  perspective: 1000px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  transform-style: preserve-3d;
+  transition: transform .55s cubic-bezier(.4,0,.2,1);
+  border-radius: var(--radius);
+}
+
+.card.flipped { transform: rotateY(180deg); }
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 2.5rem;
+  box-shadow: var(--shadow);
+}
+
+.card-front {
+  background: var(--card-bg);
+  color: var(--card-text);
+}
+
+.card-back {
+  background: linear-gradient(135deg, #312e81, #1e3a5f);
+  color: #e0e7ff;
+  transform: rotateY(180deg);
+}
+
+.face-label {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  opacity: .45;
+  margin-bottom: .75rem;
+}
+
+.face-text {
+  font-size: clamp(1.3rem, 4vw, 2rem);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.flip-hint {
+  margin-top: 1.2rem;
+  font-size: .7rem;
+  opacity: .4;
+  letter-spacing: .5px;
+}
+
+/* empty state */
+.card-face.empty { background: var(--surface); color: var(--text-dim); flex-direction: column; gap:.75rem; }
+.card-face.empty svg { opacity: .3; }
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+.controls {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+}
+
+.btn {
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: .9rem;
+  font-weight: 600;
+  padding: .7rem 1.2rem;
+  transition: opacity .15s, transform .1s, background .2s;
+  touch-action: manipulation;
+}
+.btn:active { transform: scale(.96); }
+.btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+.btn-nav {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  flex: 1;
+}
+.btn-nav:not(:disabled):hover { background: var(--border); }
+
+.btn-flip {
+  background: var(--accent);
+  color: #fff;
+  flex: 2;
+}
+.btn-flip:not(:disabled):hover { background: var(--accent-h); }
+
+.secondary-controls {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  gap: .75rem;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  flex: 1;
+  font-size: .82rem;
+  padding: .55rem;
+}
+.btn-secondary:hover { color: var(--text); border-color: var(--accent); }
+
+/* ── Modals ───────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow);
+  transform: translateY(16px);
+  transition: transform .25s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+
+.modal h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  font-size: .8rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: .5px;
+}
+
+.form-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 1rem;
+  padding: .65rem .9rem;
+  outline: none;
+  transition: border-color .2s;
+  width: 100%;
+}
+.form-input:focus { border-color: var(--accent); }
+
+.modal-actions {
+  display: flex;
+  gap: .6rem;
+  margin-top: 1.25rem;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  flex: 1;
+  padding: .65rem;
+}
+.btn-primary:hover { background: var(--accent-h); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  flex: 1;
+  padding: .65rem;
+  font-size: .85rem;
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+
+/* error / info messages */
+.msg {
+  font-size: .8rem;
+  padding: .5rem .75rem;
+  border-radius: 6px;
+  margin-top: .75rem;
+  display: none;
+}
+.msg.show { display: block; }
+.msg.error { background: rgba(239,68,68,.15); color: #fca5a5; border: 1px solid rgba(239,68,68,.3); }
+.msg.info  { background: rgba(245,158,11,.12); color: #fcd34d; border: 1px solid rgba(245,158,11,.3); }
+.msg.ok    { background: rgba(34,197,94,.12);  color: #86efac;  border: 1px solid rgba(34,197,94,.3);  }
+
+/* ── Drag-drop upload zone ────────────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.drop-zone.over { border-color: var(--accent); background: rgba(99,102,241,.08); }
+.drop-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.drop-zone svg { opacity: .4; margin-bottom: .75rem; }
+.drop-zone p { font-size: .85rem; color: var(--text-dim); }
+.drop-zone strong { color: var(--accent); }
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .card { height: 240px; }
+  .face-text { font-size: 1.4rem; }
+  .controls { flex-wrap: wrap; }
+  .btn-flip { order: -1; flex: 100%; }
+}

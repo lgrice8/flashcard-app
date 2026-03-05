@@ -4,20 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Flashcards</title>
+  <link rel="stylesheet" href="/static/style.css">
   <style>
+    /* ── Inline overrides / extras not in style.css ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --primary:      #6c63ff;
-      --primary-dk:   #574fd6;
-      --secondary:    #48cfad;
-      --bg:           #0f0f1a;
-      --surface:      #16213e;
-      --surface2:     #1e2a45;
-      --text:         #eef0ff;
-      --muted:        #7a869a;
-      --border:       rgba(255,255,255,0.08);
-      --shadow-card:  0 28px 70px rgba(0,0,0,0.65);
+      --primary:    #6c63ff;
+      --primary-dk: #574fd6;
+      --secondary:  #48cfad;
+      --bg:         #0f0f1a;
+      --surface:    #16213e;
+      --surface2:   #1e2a45;
+      --text:       #eef0ff;
+      --muted:      #7a869a;
+      --border:     rgba(255,255,255,0.08);
+      --shadow-card:0 28px 70px rgba(0,0,0,.65);
     }
 
     html, body { height: 100%; }
@@ -26,212 +28,94 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
       background: var(--bg);
       background-image:
-        radial-gradient(ellipse at 15% 15%, rgba(108,99,255,0.14) 0%, transparent 55%),
-        radial-gradient(ellipse at 85% 85%, rgba(72,207,173,0.09) 0%, transparent 55%);
+        radial-gradient(ellipse at 15% 15%, rgba(108,99,255,.14) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 85%, rgba(72,207,173,.09) 0%, transparent 55%);
       color: var(--text);
       min-height: 100%;
     }
 
-    /* ══════════════════════════════════════════════
-       SCREEN SYSTEM
-    ══════════════════════════════════════════════ */
-
-    .screen { display: none; }
-    .screen.active { display: flex; }
-
-    /* ── Loading screen ── */
-    #screen-loading {
-      min-height: 100vh;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 18px;
+    /* ── Loading overlay ── */
+    #loading {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 18px; z-index: 999;
+      transition: opacity .4s;
     }
+    #loading.hidden { opacity: 0; pointer-events: none; }
 
     .spinner {
       width: 46px; height: 46px;
-      border: 3px solid rgba(108,99,255,0.2);
+      border: 3px solid rgba(108,99,255,.2);
       border-top-color: var(--primary);
       border-radius: 50%;
-      animation: spin 0.75s linear infinite;
+      animation: spin .75s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text { color: var(--muted); font-size: 0.9rem; }
+    .loading-text { color: var(--muted); font-size: .9rem; }
 
-    /* ── Upload screen ── */
-    #screen-upload {
-      min-height: 100vh;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 28px 20px;
-      gap: 0;
-    }
-
-    /* ── Study screen ── */
-    #screen-study {
-      min-height: 100vh;
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    /* ══════════════════════════════════════════════
-       UPLOAD UI
-    ══════════════════════════════════════════════ */
-
-    .upload-header { text-align: center; margin-bottom: 32px; }
-
-    .upload-header h1 {
-      font-size: clamp(1.7rem, 5vw, 2.8rem);
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #a78bfa, var(--secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 6px;
-    }
-    .upload-header p { color: var(--muted); font-size: 0.95rem; }
-
-    .upload-box { width: 100%; max-width: 480px; }
-
-    .drop-zone {
-      position: relative;
-      border: 2px dashed rgba(108,99,255,0.45);
-      border-radius: 20px;
-      padding: 54px 28px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.22s ease;
-      background: rgba(108,99,255,0.04);
-      user-select: none;
-    }
-    .drop-zone:hover,
-    .drop-zone.drag-over {
-      border-color: var(--secondary);
-      background: rgba(72,207,173,0.07);
-      transform: scale(1.025);
-    }
-    .drop-zone.uploading {
-      border-color: var(--primary);
-      pointer-events: none;
-    }
-    .dz-icon { font-size: 3rem; display: block; margin-bottom: 14px; }
-    .dz-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 6px; }
-    .dz-sub   { color: var(--muted); font-size: 0.88rem; }
-    .dz-uploading { display: none; }
-
-    .drop-zone.uploading .dz-default   { display: none; }
-    .drop-zone.uploading .dz-uploading { display: block; }
-
-    .dz-uploading .spinner {
-      margin: 0 auto 14px;
-      border-color: rgba(108,99,255,0.2);
-      border-top-color: var(--primary);
-    }
-    .dz-uploading p { color: var(--muted); font-size: 0.9rem; }
-
-    .drop-zone input[type="file"] {
-      position: absolute; inset: 0;
-      opacity: 0; cursor: pointer;
-      width: 100%; height: 100%;
-    }
-    .drop-zone.uploading input[type="file"] { pointer-events: none; }
-
-    .upload-hint {
-      margin-top: 18px;
-      padding: 14px 16px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      font-size: 0.81rem;
-      color: var(--muted);
-      line-height: 1.7;
-    }
-    .upload-hint strong { color: var(--text); display: block; margin-bottom: 4px; }
-    code {
-      background: rgba(108,99,255,0.18);
-      color: #b3a5ff;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9em;
-    }
-
-    .error-banner {
-      display: none;
-      margin-top: 14px;
-      padding: 12px 16px;
-      background: rgba(239,68,68,0.13);
-      border: 1px solid rgba(239,68,68,0.35);
-      border-radius: 10px;
-      color: #f87171;
-      font-size: 0.87rem;
-      width: 100%;
-      max-width: 480px;
-    }
-
-    #btn-cancel {
-      margin-top: 16px;
-      display: none;
-    }
-
-    /* ══════════════════════════════════════════════
-       DECK INFO BAR
-    ══════════════════════════════════════════════ */
-
+    /* ── Deck bar ── */
     .deck-bar {
       width: 100%;
-      background: rgba(22, 33, 62, 0.95);
-      border-bottom: 1px solid rgba(108,99,255,0.25);
+      background: rgba(22,33,62,.95);
+      border-bottom: 1px solid rgba(108,99,255,.25);
       padding: 11px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      position: sticky; top: 0; z-index: 10;
       backdrop-filter: blur(10px);
     }
-
-    .deck-bar-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+    .deck-bar-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
     .deck-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(108,99,255,0.18);
-      border: 1px solid rgba(108,99,255,0.3);
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(108,99,255,.18);
+      border: 1px solid rgba(108,99,255,.3);
       border-radius: 100px;
       padding: 4px 12px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: #c4b5fd;
+      font-size: .78rem; font-weight: 600; color: #c4b5fd;
     }
     .deck-badge .dot {
       width: 6px; height: 6px;
       background: var(--secondary);
-      border-radius: 50%;
-      flex-shrink: 0;
+      border-radius: 50%; flex-shrink: 0;
     }
+    .deck-badge .dot.temp { background: #f59e0b; }
 
-    .deck-bar-info {
-      font-size: 0.82rem;
-      color: var(--muted);
-    }
+    .deck-bar-info { font-size: .82rem; color: var(--muted); }
     .deck-bar-info strong { color: var(--text); }
 
-    /* ══════════════════════════════════════════════
-       STUDY LAYOUT
-    ══════════════════════════════════════════════ */
+    .temp-notice {
+      font-size: .72rem;
+      background: rgba(245,158,11,.15);
+      border: 1px solid rgba(245,158,11,.3);
+      color: #fcd34d;
+      border-radius: 6px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
 
+    /* ── Status notification (page-load / upload success) ── */
+    #status-bar {
+      position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%);
+      background: rgba(22,33,62,.97);
+      border: 1px solid rgba(108,99,255,.4);
+      border-radius: 100px;
+      padding: .5rem 1.2rem;
+      font-size: .82rem; color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      z-index: 300;
+      opacity: 1; transition: opacity .5s ease;
+      white-space: nowrap;
+      max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+    }
+    #status-bar.fade { opacity: 0; pointer-events: none; }
+
+    /* ── Study layout ── */
     .study-wrap {
       flex: 1;
       display: flex;
@@ -243,33 +127,33 @@
       max-width: 700px;
       margin: 0 auto;
     }
+    #screen-study {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      min-height: 100vh;
+    }
 
     /* ── Progress ── */
     .progress-block { width: 100%; margin-bottom: 20px; }
     .progress-track {
       height: 5px;
-      background: rgba(255,255,255,0.07);
-      border-radius: 100px;
-      overflow: hidden;
+      background: rgba(255,255,255,.07);
+      border-radius: 100px; overflow: hidden;
       margin-bottom: 8px;
     }
     .progress-fill {
-      height: 100%;
-      border-radius: 100px;
+      height: 100%; border-radius: 100px;
       background: linear-gradient(90deg, var(--primary), var(--secondary));
-      transition: width 0.3s ease;
+      transition: width .3s ease;
     }
     .progress-label {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      display: flex; justify-content: space-between; align-items: center;
     }
-    .progress-text { color: var(--muted); font-size: 0.83rem; }
+    .progress-text { color: var(--muted); font-size: .83rem; }
     .shuffle-badge {
-      font-size: 0.75rem;
-      color: var(--secondary);
-      opacity: 0;
-      transition: opacity 0.3s;
+      font-size: .75rem; color: var(--secondary);
+      opacity: 0; transition: opacity .3s;
     }
     .shuffle-badge.visible { opacity: 1; }
 
@@ -279,104 +163,94 @@
       perspective: 1300px;
       margin-bottom: 26px;
     }
-
     .card-inner {
-      position: relative;
-      width: 100%;
+      position: relative; width: 100%;
       height: 300px;
-      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform .55s cubic-bezier(.4,0,.2,1);
       transform-style: preserve-3d;
       cursor: pointer;
+      touch-action: manipulation;
+      animation: cardIn .3s ease;
     }
     .card-inner.flipped { transform: rotateY(180deg); }
-
-    @media (min-height: 640px)  { .card-inner { height: 340px; } }
-    @media (min-height: 780px)  { .card-inner { height: 400px; } }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    /* Triggered on each card navigation */
+    @keyframes cardSwitch {
+      from { opacity: .3; transform: scale(.97) translateY(5px); }
+      to   { opacity: 1;  transform: scale(1) translateY(0); }
+    }
+    .card-inner.switching { animation: cardSwitch .22s ease forwards; }
+    @media (min-height: 640px) { .card-inner { height: 340px; } }
+    @media (min-height: 780px) { .card-inner { height: 400px; } }
 
     .card-face {
       position: absolute; inset: 0;
       border-radius: 22px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       padding: 32px;
       box-shadow: var(--shadow-card);
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
       overflow: hidden;
     }
-    /* Subtle inner highlight */
     .card-face::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 40%;
-      background: linear-gradient(to bottom, rgba(255,255,255,0.1), transparent);
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 40%;
+      background: linear-gradient(to bottom, rgba(255,255,255,.1), transparent);
       border-radius: 22px 22px 0 0;
       pointer-events: none;
     }
     .card-back { transform: rotateY(180deg); }
 
-    /* 5 rotating themes */
-    .t0 .card-face.card-front { background: linear-gradient(145deg, #667eea, #764ba2); }
-    .t0 .card-face.card-back  { background: linear-gradient(145deg, #f093fb, #f5576c); }
-    .t1 .card-face.card-front { background: linear-gradient(145deg, #4facfe, #00c9ff); }
-    .t1 .card-face.card-back  { background: linear-gradient(145deg, #43e97b, #38f9d7); }
-    .t2 .card-face.card-front { background: linear-gradient(145deg, #fa709a, #fee140); }
-    .t2 .card-face.card-back  { background: linear-gradient(145deg, #30cfd0, #5b2d8e); }
-    .t3 .card-face.card-front { background: linear-gradient(145deg, #a18cd1, #fbc2eb); }
-    .t3 .card-face.card-back  { background: linear-gradient(145deg, #fccb90, #d57eeb); }
-    .t4 .card-face.card-front { background: linear-gradient(145deg, #11998e, #38ef7d); }
-    .t4 .card-face.card-back  { background: linear-gradient(145deg, #f6d365, #fda085); }
+    /* 5 rotating gradient themes */
+    .t0 .card-face.card-front { background: linear-gradient(145deg,#667eea,#764ba2); }
+    .t0 .card-face.card-back  { background: linear-gradient(145deg,#f093fb,#f5576c); }
+    .t1 .card-face.card-front { background: linear-gradient(145deg,#4facfe,#00c9ff); }
+    .t1 .card-face.card-back  { background: linear-gradient(145deg,#43e97b,#38f9d7); }
+    .t2 .card-face.card-front { background: linear-gradient(145deg,#fa709a,#fee140); }
+    .t2 .card-face.card-back  { background: linear-gradient(145deg,#30cfd0,#5b2d8e); }
+    .t3 .card-face.card-front { background: linear-gradient(145deg,#a18cd1,#fbc2eb); }
+    .t3 .card-face.card-back  { background: linear-gradient(145deg,#fccb90,#d57eeb); }
+    .t4 .card-face.card-front { background: linear-gradient(145deg,#11998e,#38ef7d); }
+    .t4 .card-face.card-back  { background: linear-gradient(145deg,#f6d365,#fda085); }
 
     .card-label {
       position: absolute; top: 16px; left: 20px;
-      font-size: 0.67rem; font-weight: 800;
+      font-size: .67rem; font-weight: 800;
       letter-spacing: 2.5px; text-transform: uppercase;
-      color: rgba(255,255,255,0.6);
+      color: rgba(255,255,255,.6);
     }
     .card-num {
       position: absolute; top: 16px; right: 20px;
-      font-size: 0.67rem; font-weight: 700;
-      color: rgba(255,255,255,0.45);
+      font-size: .67rem; font-weight: 700;
+      color: rgba(255,255,255,.45);
     }
     .card-text {
       color: #fff;
-      font-size: clamp(1rem, 3.5vw, 1.75rem);
+      font-size: clamp(1rem,3.5vw,1.75rem);
       font-weight: 700;
-      text-align: center;
-      line-height: 1.45;
-      max-height: 75%;
-      overflow-y: auto;
-      width: 100%;
+      text-align: center; line-height: 1.45;
+      max-height: 75%; overflow-y: auto; width: 100%;
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.25) transparent;
+      scrollbar-color: rgba(255,255,255,.25) transparent;
     }
     .card-hint {
       position: absolute; bottom: 15px;
-      font-size: 0.71rem;
-      color: rgba(255,255,255,0.48);
+      font-size: .71rem;
+      color: rgba(255,255,255,.48);
     }
-
-    /* Card entrance animation */
-    @keyframes cardIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .card-inner { animation: cardIn 0.3s ease; }
 
     /* ── Completion toast ── */
     .toast {
-      display: none;
-      align-items: center;
-      gap: 8px;
+      display: none; align-items: center; gap: 8px;
       background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: #fff;
-      padding: 8px 22px;
+      color: #fff; padding: 8px 22px;
       border-radius: 100px;
-      font-size: 0.87rem;
-      font-weight: 600;
+      font-size: .87rem; font-weight: 600;
       margin-bottom: 16px;
     }
     .toast.visible { display: inline-flex; }
@@ -386,63 +260,142 @@
       display: inline-flex; align-items: center; gap: 6px;
       padding: 11px 22px;
       border: none; border-radius: 10px;
-      font-size: 0.88rem; font-weight: 600;
+      font-size: .88rem; font-weight: 600;
       cursor: pointer;
-      transition: all 0.16s ease;
+      transition: all .16s ease;
       white-space: nowrap;
       user-select: none; -webkit-user-select: none;
     }
-    .btn:active { transform: scale(0.96); }
-    .btn:disabled { opacity: 0.35; cursor: default; transform: none; }
+    .btn:active { transform: scale(.96); }
+    .btn:disabled { opacity: .35; cursor: default; transform: none; }
 
     .btn-primary {
       background: linear-gradient(135deg, var(--primary), #7c6af5);
       color: #fff;
-      box-shadow: 0 4px 20px rgba(108,99,255,0.35);
+      box-shadow: 0 4px 20px rgba(108,99,255,.35);
     }
     .btn-primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
 
     .btn-ghost {
-      background: rgba(255,255,255,0.06);
+      background: rgba(255,255,255,.06);
       color: var(--muted);
       border: 1px solid var(--border);
     }
-    .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.12); color: var(--text); }
+    .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,.12); color: var(--text); }
 
-    .btn-sm { padding: 7px 14px; font-size: 0.8rem; border-radius: 8px; }
+    .btn-sm { padding: 7px 14px; font-size: .8rem; border-radius: 8px; }
+    .btn-nav { padding: 13px 30px; font-size: .95rem; border-radius: 12px; }
 
-    .btn-nav { padding: 13px 30px; font-size: 0.95rem; border-radius: 12px; }
-
-    /* ── Nav / Controls ── */
+    /* ── Nav rows ── */
     .nav-row {
       display: flex; gap: 12px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
-      width: 100%;
+      justify-content: center; flex-wrap: wrap;
+      margin-bottom: 14px; width: 100%;
     }
     .controls-row {
       display: flex; gap: 8px;
-      justify-content: center;
-      flex-wrap: wrap;
+      justify-content: center; flex-wrap: wrap;
       margin-bottom: 14px;
     }
-    .kb-row {
-      font-size: 0.71rem;
-      color: var(--muted);
-      text-align: center;
-    }
+    .kb-row { font-size: .71rem; color: var(--muted); text-align: center; }
     .key {
       display: inline-block;
-      border: 1px solid rgba(255,255,255,0.16);
-      border-radius: 5px;
-      padding: 1px 7px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 5px; padding: 1px 7px;
       font-family: monospace;
-      background: rgba(255,255,255,0.04);
+      background: rgba(255,255,255,.04);
       margin: 0 1px;
     }
 
-    /* ── Responsive ── */
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.72);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem; z-index: 200;
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid rgba(108,99,255,.3);
+      border-radius: 20px;
+      padding: 2rem;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.6);
+      transform: translateY(18px);
+      transition: transform .25s;
+    }
+    .modal-overlay.open .modal-box { transform: translateY(0); }
+
+    .modal-box h2 {
+      font-size: 1.15rem; font-weight: 700;
+      margin-bottom: 1.4rem;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .9rem; }
+    .form-label { font-size: .78rem; color: var(--muted); font-weight: 600; letter-spacing: .5px; }
+    .form-input {
+      background: var(--bg);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px; color: var(--text);
+      font-size: 1rem; padding: .65rem .9rem;
+      outline: none; transition: border-color .2s; width: 100%;
+    }
+    .form-input:focus { border-color: var(--primary); }
+
+    .modal-actions { display: flex; gap: .6rem; margin-top: 1.25rem; }
+    .modal-actions .btn { flex: 1; justify-content: center; }
+
+    .inline-msg {
+      font-size: .8rem; border-radius: 8px;
+      padding: .45rem .75rem; margin-top: .6rem; display: none;
+    }
+    .inline-msg.show { display: block; }
+    .inline-msg.err  { background: rgba(239,68,68,.13); color: #fca5a5; border: 1px solid rgba(239,68,68,.3); }
+    .inline-msg.ok   { background: rgba(34,197,94,.12);  color: #86efac; border: 1px solid rgba(34,197,94,.3); }
+    .inline-msg.info { background: rgba(99,102,241,.12); color: #a5b4fc; border: 1px solid rgba(99,102,241,.3); }
+
+    /* ── Upload drop zone (inside modal) ── */
+    .drop-zone {
+      position: relative;
+      border: 2px dashed rgba(108,99,255,.45);
+      border-radius: 14px;
+      padding: 2.2rem 1.5rem;
+      cursor: pointer; text-align: center;
+      transition: all .22s ease;
+      background: rgba(108,99,255,.04);
+      user-select: none;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--secondary);
+      background: rgba(72,207,173,.07);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .dz-icon { font-size: 2.5rem; display: block; margin-bottom: 10px; }
+    .dz-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+    .dz-sub   { color: var(--muted); font-size: .84rem; }
+
+    code {
+      background: rgba(108,99,255,.18); color: #b3a5ff;
+      padding: 1px 6px; border-radius: 4px;
+      font-family: 'Courier New', monospace; font-size: .9em;
+    }
+    .upload-hint {
+      margin-top: 14px; padding: 12px 14px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: .79rem; color: var(--muted); line-height: 1.7;
+    }
+    .upload-hint strong { color: var(--text); display: block; margin-bottom: 3px; }
+
     @media (max-width: 420px) {
       .btn-nav { padding: 12px 22px; }
       .card-face { padding: 22px; }
@@ -452,77 +405,38 @@
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════
-     LOADING SCREEN
-═══════════════════════════════════════════════ -->
-<div class="screen active" id="screen-loading">
+<!-- Status notification bar -->
+<div id="status-bar" style="display:none"></div>
+
+<!-- Loading overlay -->
+<div id="loading">
   <div class="spinner"></div>
-  <p class="loading-text">Checking server for loaded deck&hellip;</p>
+  <p class="loading-text">Loading deck&hellip;</p>
 </div>
 
 
 <!-- ═══════════════════════════════════════════════
-     UPLOAD SCREEN
+     STUDY SCREEN (always visible after load)
 ═══════════════════════════════════════════════ -->
-<div class="screen" id="screen-upload">
-  <div class="upload-header">
-    <h1>Flashcards</h1>
-    <p id="upload-subtitle">Upload a CSV file to load a new deck</p>
-  </div>
+<div id="screen-study">
 
-  <div class="upload-box">
-    <div class="drop-zone" id="drop-zone">
-      <input type="file" id="file-input" accept=".csv,.txt">
-
-      <!-- Default state -->
-      <div class="dz-default">
-        <span class="dz-icon">&#128196;</span>
-        <p class="dz-title">Drop CSV file here</p>
-        <p class="dz-sub">or click to choose a file</p>
-      </div>
-
-      <!-- Uploading state -->
-      <div class="dz-uploading">
-        <div class="spinner"></div>
-        <p>Uploading &amp; parsing&hellip;</p>
-      </div>
-    </div>
-
-    <div id="error-banner" class="error-banner"></div>
-
-    <div class="upload-hint">
-      <strong>Expected CSV format</strong>
-      Row&nbsp;1 is the header row and is skipped.<br>
-      Column&nbsp;1&nbsp;&#8594;&nbsp;<code>Front (question)</code>&nbsp;&nbsp;&nbsp;
-      Column&nbsp;2&nbsp;&#8594;&nbsp;<code>Back (answer)</code>
-    </div>
-  </div>
-
-  <button class="btn btn-ghost" id="btn-cancel" onclick="cancelUpload()">
-    &#8592; Back to current deck
-  </button>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════
-     STUDY SCREEN
-═══════════════════════════════════════════════ -->
-<div class="screen" id="screen-study">
-
-  <!-- Sticky deck info bar -->
+  <!-- Sticky deck bar -->
   <div class="deck-bar">
     <div class="deck-bar-left">
-      <div class="deck-badge">
-        <span class="dot"></span>
-        <span>Current deck</span>
+      <div class="deck-badge" id="deck-badge">
+        <span class="dot" id="badge-dot"></span>
+        <span id="badge-label">Current deck</span>
       </div>
       <span class="deck-bar-info">
         <strong id="deck-name">—</strong>
         &nbsp;&middot;&nbsp;
         <strong id="deck-count">0</strong> cards
       </span>
+      <span class="temp-notice" id="temp-notice" style="display:none">
+        ⏱ Temporary deck active — will reset to default on next visit
+      </span>
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="showUpload()">
+    <button class="btn btn-ghost btn-sm" id="btn-load-deck">
       &#8679; Load New Deck
     </button>
   </div>
@@ -549,13 +463,13 @@
            aria-label="Flashcard — click to flip">
         <div class="card-face card-front">
           <span class="card-label">Question</span>
-          <span class="card-num"  id="front-num"></span>
+          <span class="card-num" id="front-num"></span>
           <div  class="card-text" id="front-text"></div>
           <span class="card-hint">tap to reveal answer</span>
         </div>
         <div class="card-face card-back">
           <span class="card-label">Answer</span>
-          <span class="card-num"  id="back-num"></span>
+          <span class="card-num" id="back-num"></span>
           <div  class="card-text" id="back-text"></div>
           <span class="card-hint">tap to flip back</span>
         </div>
@@ -563,16 +477,17 @@
     </div>
 
     <div class="nav-row">
-      <button class="btn btn-ghost btn-nav" id="btn-prev" onclick="prevCard()">&#8592; Previous</button>
-      <button class="btn btn-primary btn-nav" id="btn-next" onclick="nextCard()">Next &#8594;</button>
+      <button class="btn btn-ghost btn-nav" id="btn-prev" onclick="prevCard()">&#8592; Prev</button>
+      <button class="btn btn-primary btn-nav" id="btn-flip" onclick="flipCard()">&#8635; Flip</button>
+      <button class="btn btn-ghost btn-nav" id="btn-next" onclick="nextCard()">Next &#8594;</button>
     </div>
 
     <div class="controls-row">
       <button class="btn btn-ghost" id="btn-shuffle" onclick="shuffleCards()">&#128256; Shuffle</button>
-      <button class="btn btn-ghost" onclick="resetOrder()">&#8635; Original Order</button>
+      <button class="btn btn-ghost" onclick="resetOrder()">&#8635; Restart</button>
     </div>
 
-    <p class="kb-row">
+    <p class="kb-row" id="kb-row">
       <span class="key">&#8592;</span> Prev &nbsp;
       <span class="key">&#8594;</span> Next &nbsp;
       <span class="key">Space</span> Flip &nbsp;
@@ -583,201 +498,205 @@
 </div>
 
 
+<!-- ═══════════════════════════════════════════════
+     PASSCODE MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-passcode">
+  <div class="modal-box">
+    <h2>&#128274; Enter Passcode</h2>
+    <p style="font-size:.83rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.5">
+      Enter the passcode to upload a temporary deck.<br>
+      <span style="color:#a5b4fc">Your upload is session-only and won't affect other users.</span>
+    </p>
+    <div class="form-group">
+      <label class="form-label" for="input-passcode">Passcode</label>
+      <input class="form-input" type="password" id="input-passcode"
+             placeholder="••••" maxlength="20" autocomplete="off">
+    </div>
+    <div class="inline-msg" id="passcode-msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btn-passcode-ok">Unlock</button>
+      <button class="btn btn-ghost"   id="btn-passcode-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     UPLOAD MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-upload">
+  <div class="modal-box">
+    <h2>&#128194; Load New Deck</h2>
+
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".csv">
+      <span class="dz-icon">&#128196;</span>
+      <p class="dz-title">Drop CSV file here</p>
+      <p class="dz-sub">or click to choose a file</p>
+    </div>
+
+    <div class="upload-hint">
+      <strong>Expected CSV format</strong>
+      Row&nbsp;1 is a header row and is skipped.<br>
+      Column&nbsp;1&nbsp;&#8594;&nbsp;<code>Front (word / question)</code>&nbsp;&nbsp;
+      Column&nbsp;2&nbsp;&#8594;&nbsp;<code>Back (definition / answer)</code>
+    </div>
+
+    <div class="inline-msg" id="upload-msg"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-upload-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
 <script>
 'use strict';
 
-// ─── State ────────────────────────────────────────────────────────────────────
-let cards    = [];   // active (possibly shuffled) deck
-let original = [];   // pristine server copy
+/* ── State ─────────────────────────────────────────────────────────────────── */
+let cards    = [];
+let original = [];
 let idx      = 0;
-let hasDeck  = false;
 
-// ─── Screen helpers ───────────────────────────────────────────────────────────
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + id).classList.add('active');
+/* ── DOM helpers ───────────────────────────────────────────────────────────── */
+const $  = id => document.getElementById(id);
+const el = {
+  loading:      $('loading'),
+  statusBar:    $('status-bar'),
+  deckName:     $('deck-name'),
+  deckCount:    $('deck-count'),
+  badgeDot:     $('badge-dot'),
+  badgeLabel:   $('badge-label'),
+  tempNotice:   $('temp-notice'),
+  progressFill: $('progress-fill'),
+  progressText: $('progress-text'),
+  shuffleBadge: $('shuffle-badge'),
+  toast:        $('toast'),
+  cardInner:    $('card-inner'),
+  frontText:    $('front-text'),
+  backText:     $('back-text'),
+  frontNum:     $('front-num'),
+  backNum:      $('back-num'),
+  btnPrev:      $('btn-prev'),
+  btnNext:      $('btn-next'),
+  btnFlip:      $('btn-flip'),
+  btnShuffle:   $('btn-shuffle'),
+  kbRow:        $('kb-row'),
+};
+
+/* ── Hide keyboard hint on touch-only devices ──────────────────────────────── */
+window.addEventListener('touchstart', () => {
+  if (el.kbRow) el.kbRow.style.display = 'none';
+}, { once: true });
+
+/* ── Status notification (bottom toast) ───────────────────────────────────── */
+let statusTimer = null;
+function showStatus(msg, durationMs = 3500) {
+  el.statusBar.textContent = msg;
+  el.statusBar.style.display = '';
+  el.statusBar.classList.remove('fade');
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => {
+    el.statusBar.classList.add('fade');
+    setTimeout(() => { el.statusBar.style.display = 'none'; }, 520);
+  }, durationMs);
 }
 
-// ─── Startup: fetch current deck from server ──────────────────────────────────
-async function init() {
-  try {
-    const res  = await fetch('/api/deck');
-    const data = await res.json();
-    if (data.filename && Array.isArray(data.cards) && data.cards.length > 0) {
-      hasDeck = true;
-      applyDeck(data);
-    } else {
-      showScreen('upload');
-    }
-  } catch (e) {
-    showScreen('upload');
-  }
+/* ── Card switch animation ─────────────────────────────────────────────────── */
+function triggerCardAnim() {
+  el.cardInner.classList.remove('switching');
+  void el.cardInner.offsetWidth; // force reflow so animation re-triggers
+  el.cardInner.classList.add('switching');
 }
 
-// ─── Apply deck data returned by server ──────────────────────────────────────
-function applyDeck(data) {
-  original = data.cards;
+/* ── Apply deck data from API ──────────────────────────────────────────────── */
+function applyDeck(data, isInit = false) {
+  original = data.cards || [];
   cards    = [...original];
   idx      = 0;
 
-  document.getElementById('deck-name').textContent  = data.filename;
-  document.getElementById('deck-count').textContent = data.cards.length;
+  const n    = cards.length;
+  const name = data.filename || 'unknown';
 
-  document.getElementById('shuffle-badge').classList.remove('visible');
-  showScreen('study');
+  el.deckName.textContent  = name;
+  el.deckCount.textContent = n;
+
+  if (data.is_temporary) {
+    el.badgeDot.className     = 'dot temp';
+    el.badgeLabel.textContent = 'Temporary deck';
+    el.tempNotice.style.display = '';
+  } else {
+    el.badgeDot.className     = 'dot';
+    el.badgeLabel.textContent = 'Default deck';
+    el.tempNotice.style.display = 'none';
+    if (isInit) showStatus(`Default deck loaded: ${name} — ${n} card${n !== 1 ? 's' : ''}`);
+  }
+
+  el.shuffleBadge.classList.remove('visible');
+  unflip();
   render();
 }
 
-// ─── Upload a CSV file to the server ─────────────────────────────────────────
-async function uploadFile(file) {
-  if (!/\.(csv|txt)$/i.test(file.name)) {
-    showError('Please choose a .csv file.');
-    return;
-  }
-
-  const zone = document.getElementById('drop-zone');
-  zone.classList.add('uploading');
-  hideError();
-
-  const fd = new FormData();
-  fd.append('file', file);
-
-  try {
-    const res  = await fetch('/api/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-
-    if (!res.ok) {
-      showError(data.error || 'Upload failed — please try again.');
-      return;
-    }
-
-    hasDeck = true;
-    applyDeck(data);
-
-  } catch (e) {
-    showError('Network error: ' + e.message);
-  } finally {
-    zone.classList.remove('uploading');
-    document.getElementById('file-input').value = '';
-  }
-}
-
-// ─── Show / hide upload screen ────────────────────────────────────────────────
-function showUpload() {
-  // Show "Back" button only if a deck is already loaded
-  document.getElementById('btn-cancel').style.display = hasDeck ? 'inline-flex' : 'none';
-  document.getElementById('upload-subtitle').textContent =
-    hasDeck ? 'Upload a new CSV to replace the current deck for all devices'
-            : 'Upload a CSV file to load a deck';
-  hideError();
-  showScreen('upload');
-}
-
-function cancelUpload() {
-  if (hasDeck) showScreen('study');
-}
-
-// ─── Error banner ─────────────────────────────────────────────────────────────
-function showError(msg) {
-  const el = document.getElementById('error-banner');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
-function hideError() {
-  document.getElementById('error-banner').style.display = 'none';
-}
-
-// ─── Render current card ──────────────────────────────────────────────────────
+/* ── Render current card ───────────────────────────────────────────────────── */
 function render() {
-  const card  = cards[idx];
   const total = cards.length;
-  const num   = `${idx + 1} / ${total}`;
-  const pct   = ((idx + 1) / total * 100).toFixed(1);
+  if (total === 0) return;
 
-  document.getElementById('front-text').textContent = card.front;
-  document.getElementById('back-text').textContent  = card.back;
-  document.getElementById('front-num').textContent  = num;
-  document.getElementById('back-num').textContent   = num;
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('progress-text').textContent = `Card ${idx + 1} of ${total}`;
+  const card = cards[idx];
+  const num  = `${idx + 1} / ${total}`;
+  const pct  = Math.round((idx + 1) / total * 100); // FIX: no decimals
 
-  // Cycle gradient theme
-  const inner = document.getElementById('card-inner');
-  inner.className = inner.className.replace(/\bt\d\b/, 't' + (idx % 5));
+  el.frontText.textContent = card.front;
+  el.backText.textContent  = card.back;
+  el.frontNum.textContent  = num;
+  el.backNum.textContent   = num;
+  el.progressFill.style.width = pct + '%';
+  el.progressText.textContent = `Card ${idx + 1} of ${total}`;
 
-  // Completion toast
-  document.getElementById('toast').classList.toggle('visible', idx === total - 1);
+  // Rotate gradient theme (preserve flipped state)
+  const wasFlipped = el.cardInner.classList.contains('flipped');
+  el.cardInner.className = `card-inner t${idx % 5}${wasFlipped ? ' flipped' : ''}`;
 
-  // Disable nav at edges
-  document.getElementById('btn-prev').disabled = (idx === 0);
-  document.getElementById('btn-next').disabled = (idx === total - 1);
+  el.toast.classList.toggle('visible', idx === total - 1);
+  el.btnPrev.disabled = idx === 0;
+  el.btnNext.disabled = idx === total - 1;
 }
 
-// ─── Card actions ─────────────────────────────────────────────────────────────
-function flipCard() {
-  document.getElementById('card-inner').classList.toggle('flipped');
-}
+/* ── Card controls ─────────────────────────────────────────────────────────── */
+function flipCard()  { el.cardInner.classList.toggle('flipped'); }
+function unflip()    { el.cardInner.classList.remove('flipped'); }
 
 function nextCard() {
-  if (idx < cards.length - 1) { idx++; unflip(); render(); }
+  if (idx < cards.length - 1) { idx++; unflip(); triggerCardAnim(); render(); }
 }
-
 function prevCard() {
-  if (idx > 0) { idx--; unflip(); render(); }
-}
-
-function unflip() {
-  document.getElementById('card-inner').classList.remove('flipped');
+  if (idx > 0) { idx--; unflip(); triggerCardAnim(); render(); }
 }
 
 function shuffleCards() {
-  // Fisher-Yates
   const a = [...cards];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
-  cards = a;
-  idx   = 0;
-  unflip();
-  render();
-
-  document.getElementById('shuffle-badge').classList.add('visible');
-
-  const btn = document.getElementById('btn-shuffle');
-  btn.textContent = '\u2713 Shuffled!';
-  setTimeout(() => { btn.innerHTML = '&#128256; Shuffle'; }, 1800);
+  cards = a; idx = 0;
+  unflip(); triggerCardAnim(); render();
+  el.shuffleBadge.classList.add('visible');
+  el.btnShuffle.textContent = '✓ Shuffled!';
+  setTimeout(() => { el.btnShuffle.innerHTML = '&#128256; Shuffle'; }, 1800);
 }
 
 function resetOrder() {
-  cards = [...original];
-  idx   = 0;
-  unflip();
-  render();
-  document.getElementById('shuffle-badge').classList.remove('visible');
+  cards = [...original]; idx = 0;
+  unflip(); triggerCardAnim(); render();
+  el.shuffleBadge.classList.remove('visible');
 }
 
-// ─── Drag & Drop ─────────────────────────────────────────────────────────────
-const dropZone  = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-
-dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('dragend',   ()  => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) uploadFile(file);
-});
-fileInput.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (file) uploadFile(file);
-});
-
-// ─── Keyboard shortcuts ───────────────────────────────────────────────────────
+/* ── Keyboard shortcuts ────────────────────────────────────────────────────── */
 document.addEventListener('keydown', e => {
-  if (!document.getElementById('screen-study').classList.contains('active')) return;
+  if (document.querySelector('.modal-overlay.open')) return;
   if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
   switch (e.key) {
     case 'ArrowRight': nextCard();   break;
@@ -786,15 +705,133 @@ document.addEventListener('keydown', e => {
     case 's': case 'S': shuffleCards(); break;
   }
 });
-
-// Card accessible via Enter key
-document.getElementById('card-inner').addEventListener('keydown', e => {
-  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flipCard(); }
+// FIX: only handle Enter here (Space handled by global handler above to avoid double-flip)
+el.cardInner.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); flipCard(); }
 });
 
-// ─── Boot ─────────────────────────────────────────────────────────────────────
+/* ── Modal helpers ─────────────────────────────────────────────────────────── */
+function openModal(id)  { $('modal-' + id).classList.add('open'); }
+function closeModal(id) { $('modal-' + id).classList.remove('open'); }
+
+function setMsg(elId, text, type) {
+  const m = $(elId);
+  m.textContent = text;
+  m.className   = `inline-msg ${type} show`;
+}
+function clearMsg(elId) {
+  const m = $(elId);
+  m.textContent = '';
+  m.className   = 'inline-msg';
+}
+
+/* ── Passcode flow ─────────────────────────────────────────────────────────── */
+$('btn-load-deck').addEventListener('click', () => {
+  $('input-passcode').value = '';
+  clearMsg('passcode-msg');
+  openModal('passcode');
+  setTimeout(() => $('input-passcode').focus(), 60);
+});
+
+$('btn-passcode-cancel').addEventListener('click', () => closeModal('passcode'));
+$('modal-passcode').addEventListener('click', e => {
+  if (e.target === $('modal-passcode')) closeModal('passcode');
+});
+
+async function submitPasscode() {
+  const code = $('input-passcode').value.trim();
+  if (!code) { setMsg('passcode-msg', 'Please enter the passcode.', 'err'); return; }
+
+  const btn = $('btn-passcode-ok');
+  btn.disabled = true; btn.textContent = 'Checking…';
+
+  try {
+    const res = await fetch('/api/verify-passcode', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ passcode: code }),
+    });
+    if (res.ok) {
+      closeModal('passcode');
+      clearMsg('upload-msg');
+      openModal('upload');
+    } else {
+      setMsg('passcode-msg', 'Incorrect passcode — try again.', 'err');
+      $('input-passcode').value = '';
+      $('input-passcode').focus();
+    }
+  } catch {
+    setMsg('passcode-msg', 'Network error. Please try again.', 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Unlock';
+  }
+}
+$('btn-passcode-ok').addEventListener('click', submitPasscode);
+$('input-passcode').addEventListener('keydown', e => { if (e.key === 'Enter') submitPasscode(); });
+
+/* ── Upload flow ───────────────────────────────────────────────────────────── */
+$('btn-upload-cancel').addEventListener('click', () => closeModal('upload'));
+$('modal-upload').addEventListener('click', e => {
+  if (e.target === $('modal-upload')) closeModal('upload');
+});
+
+const dropZone  = $('drop-zone');
+const fileInput = $('file-input');
+
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('dragend',   ()  => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) uploadFile(e.target.files[0]);
+});
+
+async function uploadFile(file) {
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    setMsg('upload-msg', 'Only .csv files are supported.', 'err');
+    return;
+  }
+  setMsg('upload-msg', 'Uploading and parsing…', 'info');
+
+  const form = new FormData();
+  form.append('file', file);
+
+  try {
+    const res  = await fetch('/api/upload', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) { setMsg('upload-msg', data.error || 'Upload failed.', 'err'); return; }
+    setMsg('upload-msg', `✓ Loaded ${data.cards.length} cards from "${data.filename}"`, 'ok');
+    setTimeout(() => {
+      closeModal('upload');
+      applyDeck(data);
+      showStatus('Temporary deck loaded — will revert to default when session ends', 5000);
+    }, 900);
+  } catch {
+    setMsg('upload-msg', 'Network error during upload.', 'err');
+  } finally {
+    fileInput.value = '';
+  }
+}
+
+/* ── Boot ──────────────────────────────────────────────────────────────────── */
+async function init() {
+  try {
+    const res  = await fetch('/api/deck');
+    const data = await res.json();
+    applyDeck(data, true); // isInit=true → shows "Default deck loaded" toast
+  } catch {
+    el.deckName.textContent = 'Could not connect to server';
+  } finally {
+    el.loading.classList.add('hidden');
+    setTimeout(() => { el.loading.style.display = 'none'; }, 420);
+  }
+}
+
 init();
 </script>
-
 </body>
 </html>
