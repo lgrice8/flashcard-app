@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Block Blast — Vocab Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3a;
+    --accent: #00e5ff;
+    --accent2: #ff4d6d;
+    --accent3: #aaff00;
+    --text: #e8e8f0;
+    --muted: #6b6b88;
+    --cell: #1a1a26;
+    --cell-border: #252535;
+
+    --c0: #00e5ff;
+    --c1: #ff4d6d;
+    --c2: #aaff00;
+    --c3: #ffb700;
+    --c4: #b56fff;
+    --c5: #ff6b35;
+    --c6: #00ff9f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(0,229,255,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 80%, rgba(255,77,109,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 960px;
+    padding: 20px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* Header */
+  header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo {
+    font-family: 'Unbounded', sans-serif;
+    font-weight: 900;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+  }
+  .logo span { color: var(--accent); }
+
+  .score-area {
+    display: flex;
+    gap: 16px;
+  }
+
+  .score-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    text-align: center;
+    min-width: 90px;
+  }
+
+  .score-box .label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .score-box .value {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* CSV Setup screen */
+  #setup-screen {
+    width: 100%;
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  #setup-screen h2 {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1rem;
+    color: var(--accent);
+  }
+
+  #setup-screen p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  #setup-screen p code {
+    background: var(--surface2);
+    padding: 1px 6px;
+    color: var(--accent3);
+    font-size: 0.7rem;
+  }
+
+  textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    padding: 12px;
+    resize: vertical;
+    min-height: 160px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+
+  .btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 12px 24px;
+    font-family: 'Unbounded', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:active { transform: scale(0.97); }
+  .btn.danger { background: var(--accent2); }
+  .btn.ghost {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+
+  .error-msg {
+    font-size: 0.7rem;
+    color: var(--accent2);
+    min-height: 1em;
+  }
+
+  /* Game layout */
+  #game-screen {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .game-main {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Grid */
+  #grid-container {
+    position: relative;
+  }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(8, 44px);
+    grid-template-rows: repeat(8, 44px);
+    gap: 2px;
+    background: var(--border);
+    border: 2px solid var(--border);
+    padding: 2px;
+  }
+
+  .cell {
+    width: 44px;
+    height: 44px;
+    background: var(--cell);
+    border: 1px solid var(--cell-border);
+    transition: background 0.08s, transform 0.08s;
+    position: relative;
+  }
+
+  .cell.filled {
+    border-color: transparent;
+  }
+
+  .cell.highlight {
+    background: rgba(255,255,255,0.15) !important;
+    border-color: rgba(255,255,255,0.3);
+  }
+
+  .cell.invalid-highlight {
+    background: rgba(255,77,109,0.25) !important;
+    border-color: rgba(255,77,109,0.4);
+  }
+
+  .cell.clearing {
+    animation: cellPop 0.35s ease forwards;
+  }
+
+  @keyframes cellPop {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.7; }
+    100% { transform: scale(0); opacity: 0; background: white; }
+  }
+
+  /* Pieces tray */
+  .pieces-tray {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .tray-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .pieces-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .piece-slot {
+    width: 100px;
+    height: 100px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative;
+  }
+
+  .piece-slot:hover:not(.used) {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .piece-slot.used {
+    opacity: 0.25;
+    cursor: default;
+  }
+
+  .piece-slot.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .piece-mini {
+    display: grid;
+    gap: 2px;
+  }
+
+  .piece-mini-cell {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+  }
+
+  /* Side info */
+  .side-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 140px;
+  }
+
+  .info-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+  }
+
+  .info-block .label {
+    font-size: 0.58rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .info-block .value {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .streak-bar {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .streak-pip {
+    width: 12px;
+    height: 12px;
+    background: var(--border);
+    transition: background 0.2s;
+  }
+
+  .streak-pip.active { background: var(--accent3); }
+
+  /* Quiz Modal */
+  #quiz-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #quiz-overlay.active { display: flex; }
+
+  #quiz-modal {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    padding: 36px 40px;
+    max-width: 440px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    animation: modalIn 0.25s ease;
+  }
+
+  @keyframes modalIn {
+    from { transform: translateY(20px) scale(0.97); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+
+  .quiz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .quiz-badge {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    padding: 3px 8px;
+  }
+
+  .quiz-count {
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+
+  .quiz-prompt {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .synonym-display {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--accent3);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .quiz-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  #quiz-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  #quiz-input:focus { border-color: var(--accent); }
+
+  #quiz-feedback {
+    font-size: 0.72rem;
+    min-height: 1.1em;
+    transition: color 0.2s;
+  }
+
+  #quiz-feedback.correct { color: var(--accent3); }
+  #quiz-feedback.wrong { color: var(--accent2); }
+
+  /* Game Over overlay */
+  #gameover-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #gameover-overlay.active { display: flex; }
+
+  #gameover-modal {
+    background: var(--surface);
+    border: 1px solid var(--accent2);
+    padding: 40px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: modalIn 0.3s ease;
+  }
+
+  #gameover-modal h2 {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1.5rem;
+    color: var(--accent2);
+  }
+
+  #gameover-modal .final-score {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--accent);
+  }
+
+  #gameover-modal p {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* Drag ghost */
+  #drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.75;
+    display: none;
+  }
+
+  .ghost-grid {
+    display: grid;
+    gap: 2px;
+  }
+
+  .ghost-cell {
+    width: 44px;
+    height: 44px;
+    border-radius: 2px;
+  }
+
+  /* Animations */
+  @keyframes scoreFloat {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-40px); }
+  }
+
+  .score-float {
+    position: absolute;
+    font-family: 'Unbounded', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent3);
+    pointer-events: none;
+    animation: scoreFloat 0.8s ease forwards;
+    z-index: 50;
+    white-space: nowrap;
+  }
+
+  /* Responsive */
+  @media (max-width: 560px) {
+    #grid { grid-template-columns: repeat(8, 38px); grid-template-rows: repeat(8, 38px); }
+    .cell { width: 38px; height: 38px; }
+    .ghost-cell { width: 38px; height: 38px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <header>
+    <div class="logo">BLOCK<span>BLAST</span> <span style="color:var(--accent2);font-size:0.7rem;">VOCAB</span></div>
+    <div class="score-area">
+      <div class="score-box">
+        <div class="label">Score</div>
+        <div class="value" id="score-display">0</div>
+      </div>
+      <div class="score-box">
+        <div class="label">Best</div>
+        <div class="value" id="best-display">0</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen">
+    <h2>// LOAD YOUR FLASHCARD DECK</h2>
+    <p>
+      Paste your CSV below. Each row: <code>word,synonym1,synonym2,...</code><br>
+      The front of the card (word) is column 1. Synonyms fill the remaining columns.<br>
+      Example: <code>resilient,tough,sturdy,adaptable</code>
+    </p>
+    <textarea id="csv-input" placeholder="resilient,tough,sturdy,adaptable&#10;ephemeral,fleeting,transient,brief&#10;opulent,lavish,wealthy,sumptuous&#10;..."></textarea>
+    <div class="error-msg" id="csv-error"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn" onclick="loadDeck()">START GAME →</button>
+      <button class="btn ghost" onclick="loadSampleDeck()">USE SAMPLE DECK</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game-screen">
+    <div class="game-main">
+      <!-- Grid -->
+      <div id="grid-container">
+        <div id="grid"></div>
+      </div>
+
+      <!-- Side panel -->
+      <div class="side-info">
+        <div class="info-block">
+          <div class="label">Blocks Placed</div>
+          <div class="value" id="blocks-placed-display">0</div>
+          <div class="streak-bar">
+            <div class="streak-pip" id="pip0"></div>
+            <div class="streak-pip" id="pip1"></div>
+            <div class="streak-pip" id="pip2"></div>
+          </div>
+          <div class="label" style="margin-top:6px;font-size:0.55rem;">QUIZ EVERY 3</div>
+        </div>
+        <div class="info-block">
+          <div class="label">Lines Cleared</div>
+          <div class="value" id="lines-display">0</div>
+        </div>
+        <div class="info-block">
+          <div class="label">Quiz Score</div>
+          <div class="value" id="quiz-score-display" style="color:var(--accent3)">0</div>
+        </div>
+        <button class="btn danger" onclick="confirmNewGame()" style="margin-top:8px;font-size:0.65rem;padding:10px 12px;">NEW GAME</button>
+        <button class="btn ghost" onclick="showSetup()" style="font-size:0.65rem;padding:10px 12px;">LOAD DECK</button>
+      </div>
+    </div>
+
+    <!-- Pieces tray -->
+    <div class="pieces-tray">
+      <div class="tray-label">— Choose a piece to place —</div>
+      <div class="pieces-row" id="pieces-row"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Drag ghost -->
+<div id="drag-ghost">
+  <div class="ghost-grid" id="ghost-grid"></div>
+</div>
+
+<!-- QUIZ OVERLAY -->
+<div id="quiz-overlay">
+  <div id="quiz-modal">
+    <div class="quiz-header">
+      <div class="quiz-badge">📚 Vocab Quiz</div>
+      <div class="quiz-count" id="quiz-count-display"></div>
+    </div>
+    <div class="quiz-prompt">What word matches this synonym?</div>
+    <div class="synonym-display" id="synonym-display"></div>
+    <div class="quiz-input-row">
+      <input type="text" id="quiz-input" placeholder="Type the word..." autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="btn" onclick="submitQuiz()">→</button>
+    </div>
+    <div id="quiz-feedback"></div>
+  </div>
+</div>
+
+<!-- GAME OVER OVERLAY -->
+<div id="gameover-overlay">
+  <div id="gameover-modal">
+    <h2>GAME OVER</h2>
+    <div class="final-score" id="final-score-display">0</div>
+    <p>No more pieces can be placed.</p>
+    <p id="go-quiz-summary"></p>
+    <div class="btn-row">
+      <button class="btn" onclick="restartGame()">PLAY AGAIN</button>
+      <button class="btn ghost" onclick="showSetup()">NEW DECK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const PIECE_SHAPES = [
+  // 1-cell
+  [[0,0]],
+  // 2-cell
+  [[0,0],[0,1]],
+  [[0,0],[1,0]],
+  // 3-cell L shapes
+  [[0,0],[1,0],[1,1]],
+  [[0,0],[0,1],[1,0]],
+  [[0,0],[0,1],[1,1]],
+  [[0,1],[1,0],[1,1]],
+  // 3-cell lines
+  [[0,0],[0,1],[0,2]],
+  [[0,0],[1,0],[2,0]],
+  // 2x2 square
+  [[0,0],[0,1],[1,0],[1,1]],
+  // T shapes
+  [[0,0],[0,1],[0,2],[1,1]],
+  [[0,0],[1,0],[2,0],[1,1]],
+  [[1,0],[0,1],[1,1],[1,2]],
+  [[0,1],[1,0],[1,1],[2,1]],
+  // L shapes 4
+  [[0,0],[1,0],[2,0],[2,1]],
+  [[0,0],[0,1],[0,2],[1,0]],
+  [[0,0],[0,1],[1,1],[2,1]],
+  [[2,0],[0,1],[1,1],[2,1]],
+  // S/Z
+  [[0,1],[0,2],[1,0],[1,1]],
+  [[0,0],[0,1],[1,1],[1,2]],
+  // 4-line
+  [[0,0],[0,1],[0,2],[0,3]],
+  [[0,0],[1,0],[2,0],[3,0]],
+  // 5-line
+  [[0,0],[0,1],[0,2],[0,3],[0,4]],
+  [[0,0],[1,0],[2,0],[3,0],[4,0]],
+];
+
+const COLORS = ['--c0','--c1','--c2','--c3','--c4','--c5','--c6'];
+
+const SAMPLE_DECK = [
+  {word:'resilient', synonyms:['tough','sturdy','adaptable']},
+  {word:'ephemeral', synonyms:['fleeting','transient','brief']},
+  {word:'opulent', synonyms:['lavish','wealthy','sumptuous']},
+  {word:'austere', synonyms:['severe','plain','harsh']},
+  {word:'tenacious', synonyms:['persistent','determined','stubborn']},
+  {word:'gregarious', synonyms:['sociable','outgoing','friendly']},
+  {word:'melancholy', synonyms:['sad','gloomy','sorrowful']},
+  {word:'voracious', synonyms:['greedy','insatiable','hungry']},
+  {word:'candid', synonyms:['honest','frank','direct']},
+  {word:'prudent', synonyms:['cautious','wise','careful']},
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let deck = [];
+let grid = Array.from({length:8}, () => Array(8).fill(null)); // null or colorVar
+let score = 0;
+let best = 0;
+let blocksPlaced = 0;
+let linesCleared = 0;
+let quizScore = 0;
+let pieces = [null, null, null]; // current 3 pieces
+let selectedPiece = null; // index
+let quizActive = false;
+let quizWord = null;
+let quizSynonym = null;
+let quizAttempts = 0;
+let CELL_SIZE = 46; // px (cell + gap)
+
+// ─── CSV PARSING ─────────────────────────────────────────────────────────────
+function parseCsv(raw) {
+  const lines = raw.trim().split('\n').filter(l => l.trim());
+  const result = [];
+  for (const line of lines) {
+    const parts = line.split(',').map(s => s.trim()).filter(Boolean);
+    if (parts.length < 2) continue;
+    const word = parts[0];
+    const synonyms = parts.slice(1);
+    result.push({word, synonyms});
+  }
+  return result;
+}
+
+function loadDeck() {
+  const raw = document.getElementById('csv-input').value;
+  const err = document.getElementById('csv-error');
+  const parsed = parseCsv(raw);
+  if (parsed.length < 3) {
+    err.textContent = 'Need at least 3 word/synonym pairs.';
+    return;
+  }
+  err.textContent = '';
+  deck = parsed;
+  startGame();
+}
+
+function loadSampleDeck() {
+  deck = SAMPLE_DECK;
+  startGame();
+}
+
+function showSetup() {
+  document.getElementById('setup-screen').style.display = 'flex';
+  document.getElementById('game-screen').style.display = 'none';
+}
+
+// ─── GAME INIT ───────────────────────────────────────────────────────────────
+function startGame() {
+  grid = Array.from({length:8}, () => Array(8).fill(null));
+  score = 0;
+  blocksPlaced = 0;
+  linesCleared = 0;
+  quizScore = 0;
+  selectedPiece = null;
+
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'flex';
+  document.getElementById('gameover-overlay').classList.remove('active');
+
+  buildGridDOM();
+  dealPieces();
+  updateUI();
+}
+
+function restartGame() {
+  document.getElementById('gameover-overlay').classList.remove('active');
+  startGame();
+}
+
+function confirmNewGame() {
+  if (confirm('Start a new game?')) startGame();
+}
+
+// ─── GRID DOM ─────────────────────────────────────────────────────────────────
+function buildGridDOM() {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.id = `cell-${r}-${c}`;
+      cell.addEventListener('mouseenter', () => onCellHover(r, c));
+      cell.addEventListener('click', () => onCellClick(r, c));
+      g.appendChild(cell);
+    }
+  }
+  // Detect cell size from DOM
+  setTimeout(() => {
+    const firstCell = document.getElementById('cell-0-0');
+    if (firstCell) {
+      CELL_SIZE = firstCell.offsetWidth + 2;
+    }
+  }, 50);
+}
+
+function renderGrid() {
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const cell = document.getElementById(`cell-${r}-${c}`);
+      const colorVar = grid[r][c];
+      if (colorVar) {
+        cell.style.background = `var(${colorVar})`;
+        cell.classList.add('filled');
+      } else {
+        cell.style.background = '';
+        cell.classList.remove('filled');
+      }
+    }
+  }
+}
+
+// ─── PIECES ───────────────────────────────────────────────────────────────────
+function dealPieces() {
+  pieces = [0,1,2].map(() => randomPiece());
+  renderPieces();
+}
+
+function randomPiece() {
+  const shape = PIECE_SHAPES[Math.floor(Math.random() * PIECE_SHAPES.length)];
+  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+  return {shape, color};
+}
+
+function renderPieces() {
+  const row = document.getElementById('pieces-row');
+  row.innerHTML = '';
+  pieces.forEach((piece, idx) => {
+    const slot = document.createElement('div');
+    slot.className = 'piece-slot' + (piece === null ? ' used' : '');
+    if (piece && idx === selectedPiece) slot.classList.add('selected');
+
+    if (piece) {
+      // Compute bounding box
+      const rows = piece.shape.map(([r]) => r);
+      const cols = piece.shape.map(([,c]) => c);
+      const maxR = Math.max(...rows);
+      const maxC = Math.max(...cols);
+      const miniGrid = document.createElement('div');
+      miniGrid.className = 'piece-mini';
+      miniGrid.style.gridTemplateColumns = `repeat(${maxC+1}, 16px)`;
+      miniGrid.style.gridTemplateRows = `repeat(${maxR+1}, 16px)`;
+
+      for (let r = 0; r <= maxR; r++) {
+        for (let c = 0; c <= maxC; c++) {
+          const mc = document.createElement('div');
+          mc.className = 'piece-mini-cell';
+          const isFilled = piece.shape.some(([pr,pc]) => pr===r && pc===c);
+          mc.style.background = isFilled ? `var(${piece.color})` : 'transparent';
+          miniGrid.appendChild(mc);
+        }
+      }
+      slot.appendChild(miniGrid);
+      slot.addEventListener('click', () => selectPiece(idx));
+    }
+    row.appendChild(slot);
+  });
+}
+
+function selectPiece(idx) {
+  if (pieces[idx] === null || quizActive) return;
+  selectedPiece = idx;
+  renderPieces();
+  clearHighlights();
+}
+
+// ─── PLACEMENT ───────────────────────────────────────────────────────────────
+function onCellHover(r, c) {
+  if (selectedPiece === null || quizActive) return;
+  const piece = pieces[selectedPiece];
+  if (!piece) return;
+  clearHighlights();
+  const valid = canPlace(piece.shape, r, c);
+  piece.shape.forEach(([dr, dc]) => {
+    const tr = r + dr, tc = c + dc;
+    if (tr >= 0 && tr < 8 && tc >= 0 && tc < 8) {
+      const cell = document.getElementById(`cell-${tr}-${tc}`);
+      cell.classList.add(valid ? 'highlight' : 'invalid-highlight');
+    }
+  });
+}
+
+function onCellClick(r, c) {
+  if (selectedPiece === null || quizActive) return;
+  const piece = pieces[selectedPiece];
+  if (!piece) return;
+  if (!canPlace(piece.shape, r, c)) return;
+
+  placePiece(piece, r, c);
+}
+
+function canPlace(shape, r, c) {
+  return shape.every(([dr, dc]) => {
+    const tr = r+dr, tc = c+dc;
+    return tr >= 0 && tr < 8 && tc >= 0 && tc < 8 && grid[tr][tc] === null;
+  });
+}
+
+function placePiece(piece, r, c) {
+  piece.shape.forEach(([dr, dc]) => {
+    grid[r+dr][c+dc] = piece.color;
+  });
+  pieces[selectedPiece] = null;
+  selectedPiece = null;
+  blocksPlaced++;
+
+  // Score: cells placed
+  const cellsPlaced = piece.shape.length;
+  addScore(cellsPlaced * 10);
+
+  renderGrid();
+  clearHighlights();
+
+  // Check line clears
+  checkClears(r, c, piece.shape);
+
+  // Update pip indicators
+  updatePips();
+
+  // If all 3 used, redeal
+  if (pieces.every(p => p === null)) {
+    dealPieces();
+  } else {
+    renderPieces();
+  }
+
+  updateUI();
+
+  // Quiz every 3 blocks
+  if (blocksPlaced % 3 === 0) {
+    setTimeout(() => showQuiz(), 200);
+    return;
+  }
+
+  // Check game over
+  setTimeout(() => checkGameOver(), 50);
+}
+
+function updatePips() {
+  const progress = blocksPlaced % 3;
+  [0,1,2].forEach(i => {
+    const pip = document.getElementById(`pip${i}`);
+    pip.classList.toggle('active', i < progress);
+  });
+}
+
+// ─── LINE CLEARING ─────────────────────────────────────────────────────────────
+function checkClears(anchorR, anchorC, shape) {
+  // Find all rows and cols touched
+  const touchedRows = [...new Set(shape.map(([dr]) => anchorR + dr))];
+  const touchedCols = [...new Set(shape.map(([,dc]) => anchorC + dc))];
+
+  const fullRows = [];
+  const fullCols = [];
+
+  for (const r of [0,1,2,3,4,5,6,7]) {
+    if (grid[r].every(v => v !== null)) fullRows.push(r);
+  }
+  for (const c of [0,1,2,3,4,5,6,7]) {
+    if (grid.every(row => row[c] !== null)) fullCols.push(c);
+  }
+
+  if (fullRows.length === 0 && fullCols.length === 0) return;
+
+  // Animate clearing cells
+  const clearSet = new Set();
+  fullRows.forEach(r => { for(let c=0;c<8;c++) clearSet.add(`${r}-${c}`); });
+  fullCols.forEach(c => { for(let r=0;r<8;r++) clearSet.add(`${r}-${c}`); });
+
+  clearSet.forEach(key => {
+    const cell = document.getElementById(`cell-${key}`);
+    if (cell) cell.classList.add('clearing');
+  });
+
+  const cleared = fullRows.length + fullCols.length;
+  linesCleared += cleared;
+
+  // Bonus scoring
+  let lineScore = 0;
+  cleared === 1 ? lineScore = 100 :
+  cleared === 2 ? lineScore = 250 :
+  cleared === 3 ? lineScore = 450 :
+  lineScore = cleared * 200;
+
+  setTimeout(() => {
+    // Clear from grid
+    fullRows.forEach(r => { for(let c=0;c<8;c++) grid[r][c] = null; });
+    fullCols.forEach(c => { for(let r=0;r<8;r++) grid[r][c] = null; });
+
+    clearSet.forEach(key => {
+      const cell = document.getElementById(`cell-${key}`);
+      if (cell) cell.classList.remove('clearing');
+    });
+
+    addScore(lineScore, true);
+    renderGrid();
+    updateUI();
+  }, 350);
+}
+
+// ─── SCORE ─────────────────────────────────────────────────────────────────
+function addScore(pts, showFloat) {
+  score += pts;
+  if (score > best) best = score;
+  if (showFloat) {
+    const gridEl = document.getElementById('grid');
+    const rect = gridEl.getBoundingClientRect();
+    const float = document.createElement('div');
+    float.className = 'score-float';
+    float.textContent = `+${pts}`;
+    float.style.left = (rect.left + rect.width/2 - 30) + 'px';
+    float.style.top = (rect.top + rect.height/2) + 'px';
+    float.style.position = 'fixed';
+    document.body.appendChild(float);
+    setTimeout(() => float.remove(), 800);
+  }
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('score-display').textContent = score;
+  document.getElementById('best-display').textContent = best;
+  document.getElementById('blocks-placed-display').textContent = blocksPlaced;
+  document.getElementById('lines-display').textContent = linesCleared;
+  document.getElementById('quiz-score-display').textContent = quizScore;
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.cell').forEach(c => {
+    c.classList.remove('highlight','invalid-highlight');
+  });
+}
+
+// ─── QUIZ ──────────────────────────────────────────────────────────────────
+function showQuiz() {
+  quizActive = true;
+  // Pick random card
+  const card = deck[Math.floor(Math.random() * deck.length)];
+  const synonym = card.synonyms[Math.floor(Math.random() * card.synonyms.length)];
+  quizWord = card.word;
+  quizSynonym = synonym;
+  quizAttempts = 0;
+
+  document.getElementById('synonym-display').textContent = synonym;
+  document.getElementById('quiz-count-display').textContent = `Card ${deck.indexOf(card)+1} / ${deck.length}`;
+  document.getElementById('quiz-feedback').textContent = '';
+  document.getElementById('quiz-feedback').className = '';
+  document.getElementById('quiz-input').value = '';
+  document.getElementById('quiz-overlay').classList.add('active');
+
+  setTimeout(() => document.getElementById('quiz-input').focus(), 100);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && quizActive) submitQuiz();
+});
+
+function submitQuiz() {
+  const input = document.getElementById('quiz-input').value.trim().toLowerCase();
+  const correct = quizWord.toLowerCase();
+  const fb = document.getElementById('quiz-feedback');
+
+  if (!input) return;
+
+  if (input === correct) {
+    fb.textContent = `✓ Correct! "${quizWord}" — well done.`;
+    fb.className = 'correct';
+    quizScore++;
+    updateUI();
+    setTimeout(closeQuiz, 900);
+  } else {
+    quizAttempts++;
+    // Give a new question after wrong answer
+    fb.textContent = `✗ Not quite. The answer was "${quizWord}". Loading next question...`;
+    fb.className = 'wrong';
+    setTimeout(() => {
+      // Pick a different card
+      let newCard;
+      let tries = 0;
+      do {
+        newCard = deck[Math.floor(Math.random() * deck.length)];
+        tries++;
+      } while (newCard.word === quizWord && tries < 20 && deck.length > 1);
+
+      const newSynonym = newCard.synonyms[Math.floor(Math.random() * newCard.synonyms.length)];
+      quizWord = newCard.word;
+      quizSynonym = newSynonym;
+
+      document.getElementById('synonym-display').textContent = newSynonym;
+      document.getElementById('quiz-count-display').textContent = `Card ${deck.indexOf(newCard)+1} / ${deck.length}`;
+      document.getElementById('quiz-feedback').textContent = '';
+      document.getElementById('quiz-feedback').className = '';
+      document.getElementById('quiz-input').value = '';
+      document.getElementById('quiz-input').focus();
+    }, 1400);
+  }
+}
+
+function closeQuiz() {
+  quizActive = false;
+  document.getElementById('quiz-overlay').classList.remove('active');
+  // Check game over after quiz closes
+  setTimeout(() => checkGameOver(), 50);
+}
+
+// ─── GAME OVER ─────────────────────────────────────────────────────────────
+function checkGameOver() {
+  const activePieces = pieces.filter(p => p !== null);
+  if (activePieces.length === 0) return;
+  const canPlace = activePieces.some(piece =>
+    piece.shape && canPlaceAnywhere(piece.shape)
+  );
+  if (!canPlace) showGameOver();
+}
+
+function canPlaceAnywhere(shape) {
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if (shape.every(([dr,dc]) => {
+        const tr=r+dr, tc=c+dc;
+        return tr>=0&&tr<8&&tc>=0&&tc<8&&grid[tr][tc]===null;
+      })) return true;
+    }
+  }
+  return false;
+}
+
+function showGameOver() {
+  document.getElementById('final-score-display').textContent = score;
+  document.getElementById('go-quiz-summary').textContent =
+    `Quiz answers correct: ${quizScore}`;
+  document.getElementById('gameover-overlay').classList.add('active');
+}
+
+// ─── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (quizActive) return;
+  if (e.key >= '1' && e.key <= '3') {
+    const idx = parseInt(e.key) - 1;
+    if (pieces[idx]) selectPiece(idx);
+  }
+});
+
+// Initialize
+document.getElementById('setup-screen').style.display = 'flex';
+document.getElementById('game-screen').style.display = 'none';
+</script>
+</body>
+</html>

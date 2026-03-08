@@ -93,6 +93,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/game")
+def game():
+    return render_template("game.html")
+
+
 @app.route("/api/deck")
 def api_deck():
     """Return the active deck for this session."""
