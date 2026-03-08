@@ -653,7 +653,7 @@
 
 <script>
 // ─── SERVER-INJECTED DECK ────────────────────────────────────────────────────
-const DECK_DATA = {{ deck_data | safe }};
+const DECK_DATA = {{ deck_data | tojson }};
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 const PIECE_SHAPES = [
