@@ -95,7 +95,10 @@ def index():
 
 @app.route("/game")
 def game():
-    return render_template("game.html")
+    active = session["deck"] if "deck" in session else default_deck
+    cards = active.get("cards", [])
+    deck_data = [{"word": c["front"], "synonyms": [c["back"]]} for c in cards if c.get("front")]
+    return render_template("game.html", deck_data=json.dumps(deck_data))
 
 
 @app.route("/api/deck")
