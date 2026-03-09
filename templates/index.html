@@ -196,6 +196,7 @@
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
       overflow: hidden;
+      transition: box-shadow .3s ease;
     }
     .card-face::after {
       content: ''; position: absolute;
@@ -242,6 +243,49 @@
       position: absolute; bottom: 15px;
       font-size: .71rem;
       color: rgba(255,255,255,.48);
+    }
+
+    /* ── Flagged card indicator ── */
+    .card-inner.card-flagged .card-face {
+      box-shadow: var(--shadow-card), 0 0 0 3px #f59e0b, 0 0 25px rgba(245,158,11,.25);
+    }
+    .card-flag-star {
+      position: absolute;
+      bottom: 14px; right: 18px;
+      font-size: 1.25rem;
+      color: #f59e0b;
+      opacity: 0;
+      transition: opacity .2s;
+      z-index: 5;
+      pointer-events: none;
+      text-shadow: 0 1px 6px rgba(0,0,0,.5);
+    }
+    .card-inner.card-flagged .card-flag-star { opacity: 1; }
+
+    /* ── Flagged bar (deck-bar right section) ── */
+    .flagged-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .flagged-count-badge {
+      font-size: .78rem;
+      font-weight: 700;
+      color: #f59e0b;
+      background: rgba(245,158,11,.15);
+      border: 1px solid rgba(245,158,11,.3);
+      border-radius: 100px;
+      padding: 4px 10px;
+      white-space: nowrap;
+    }
+
+    /* ── Flag button ── */
+    #btn-flag { color: var(--muted); }
+    #btn-flag.flagged {
+      color: #f59e0b;
+      background: rgba(245,158,11,.1);
+      border-color: rgba(245,158,11,.35);
     }
 
     /* ── Completion toast ── */
@@ -329,6 +373,7 @@
       transition: transform .25s;
     }
     .modal-overlay.open .modal-box { transform: translateY(0); }
+    .modal-box.modal-wide { max-width: 480px; }
 
     .modal-box h2 {
       font-size: 1.15rem; font-weight: 700;
@@ -396,6 +441,49 @@
     }
     .upload-hint strong { color: var(--text); display: block; margin-bottom: 3px; }
 
+    /* ── Review list modal ── */
+    .review-select-btns {
+      display: flex;
+      gap: 8px;
+      margin-bottom: .6rem;
+    }
+    .review-list-wrap {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,.2) transparent;
+    }
+    .review-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .review-item:last-child { border-bottom: none; }
+    .review-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+      line-height: 1.4;
+    }
+    .review-checkbox {
+      margin-top: 2px;
+      width: 16px; height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .review-word { font-weight: 600; color: var(--text); }
+    .review-def  { color: var(--muted); font-size: .86rem; }
+    .review-empty {
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: .88rem;
+    }
+
     @media (max-width: 420px) {
       .btn-nav { padding: 12px 22px; }
       .card-face { padding: 22px; }
@@ -433,10 +521,16 @@
         <strong id="deck-count">0</strong> cards
       </span>
       <span class="temp-notice" id="temp-notice" style="display:none">
-        ⏱ Temporary deck active — will reset to default on next visit
+        &#9203; Temporary deck active &mdash; will reset to default on next visit
       </span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <!-- Flagged bar (hidden until cards are flagged) -->
+      <div class="flagged-bar" id="flagged-bar" style="display:none">
+        <span class="flagged-count-badge" id="flagged-count-badge">&#9733; Flagged: 0</span>
+        <button class="btn btn-ghost btn-sm" id="btn-download-review">&#8659; Download</button>
+        <button class="btn btn-ghost btn-sm" id="btn-clear-flags">&#10005; Clear Flags</button>
+      </div>
       <a href="/game" class="btn btn-ghost btn-sm">&#9654; Block Blast</a>
       <button class="btn btn-ghost btn-sm" id="btn-load-deck">
         &#8679; Load New Deck
@@ -469,12 +563,14 @@
           <span class="card-num" id="front-num"></span>
           <div  class="card-text" id="front-text"></div>
           <span class="card-hint">tap to reveal answer</span>
+          <span class="card-flag-star">&#9733;</span>
         </div>
         <div class="card-face card-back">
           <span class="card-label">Answer</span>
           <span class="card-num" id="back-num"></span>
           <div  class="card-text" id="back-text"></div>
           <span class="card-hint">tap to flip back</span>
+          <span class="card-flag-star">&#9733;</span>
         </div>
       </div>
     </div>
@@ -488,6 +584,7 @@
     <div class="controls-row">
       <button class="btn btn-ghost" id="btn-shuffle" onclick="shuffleCards()">&#128256; Shuffle</button>
       <button class="btn btn-ghost" onclick="resetOrder()">&#8635; Restart</button>
+      <button class="btn btn-ghost" id="btn-flag" onclick="toggleFlag()">&#9734; Flag</button>
     </div>
 
     <p class="kb-row" id="kb-row">
@@ -514,7 +611,7 @@
     <div class="form-group">
       <label class="form-label" for="input-passcode">Passcode</label>
       <input class="form-input" type="password" id="input-passcode"
-             placeholder="••••" maxlength="20" autocomplete="off">
+             placeholder="&bull;&bull;&bull;&bull;" maxlength="20" autocomplete="off">
     </div>
     <div class="inline-msg" id="passcode-msg"></div>
     <div class="modal-actions">
@@ -555,6 +652,29 @@
 </div>
 
 
+<!-- ═══════════════════════════════════════════════
+     REVIEW LIST MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-review">
+  <div class="modal-box modal-wide">
+    <h2>&#9733; Review List Preview</h2>
+    <p style="font-size:.83rem;color:var(--muted);margin-bottom:.85rem;line-height:1.5">
+      Select the words to include in your downloaded CSV file.
+    </p>
+    <div class="review-select-btns">
+      <button class="btn btn-ghost btn-sm" id="btn-select-all">Select All</button>
+      <button class="btn btn-ghost btn-sm" id="btn-deselect-all">Deselect All</button>
+    </div>
+    <div class="review-list-wrap" id="review-list"></div>
+    <div class="inline-msg" id="review-msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btn-download-selected">&#8659; Download Selected (0)</button>
+      <button class="btn btn-ghost"   id="btn-review-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
 <script>
 'use strict';
 
@@ -562,6 +682,7 @@
 let cards    = [];
 let original = [];
 let idx      = 0;
+let flaggedSet = new Set(); // Set of origIdx values for flagged cards
 
 /* ── DOM helpers ───────────────────────────────────────────────────────────── */
 const $  = id => document.getElementById(id);
@@ -616,9 +737,17 @@ function triggerCardAnim() {
 
 /* ── Apply deck data from API ──────────────────────────────────────────────── */
 function applyDeck(data, isInit = false) {
-  original = data.cards || [];
+  // Assign stable origIdx to each card for flagging purposes
+  original = (data.cards || []).map((c, i) => ({ ...c, origIdx: i }));
   cards    = [...original];
   idx      = 0;
+
+  // Clear flags when switching decks (not on initial load)
+  if (!isInit) {
+    fetch('/clear_flags', { method: 'POST' }).catch(() => {});
+    flaggedSet.clear();
+    updateFlagCountUI(0);
+  }
 
   const n    = cards.length;
   const name = data.filename || 'unknown';
@@ -649,7 +778,7 @@ function render() {
 
   const card = cards[idx];
   const num  = `${idx + 1} / ${total}`;
-  const pct  = Math.round((idx + 1) / total * 100); // FIX: no decimals
+  const pct  = Math.round((idx + 1) / total * 100);
 
   el.frontText.textContent = card.front;
   el.backText.textContent  = card.back;
@@ -658,13 +787,21 @@ function render() {
   el.progressFill.style.width = pct + '%';
   el.progressText.textContent = `Card ${idx + 1} of ${total}`;
 
-  // Rotate gradient theme (preserve flipped state)
+  // Rotate gradient theme (preserve flipped state, include flagged state)
   const wasFlipped = el.cardInner.classList.contains('flipped');
-  el.cardInner.className = `card-inner t${idx % 5}${wasFlipped ? ' flipped' : ''}`;
+  const isFlagged  = flaggedSet.has(card.origIdx);
+  el.cardInner.className = `card-inner t${idx % 5}${wasFlipped ? ' flipped' : ''}${isFlagged ? ' card-flagged' : ''}`;
 
   el.toast.classList.toggle('visible', idx === total - 1);
   el.btnPrev.disabled = idx === 0;
   el.btnNext.disabled = idx === total - 1;
+
+  // Update flag button appearance
+  const btnFlag = $('btn-flag');
+  if (btnFlag) {
+    btnFlag.innerHTML = isFlagged ? '&#9733; Flagged' : '&#9734; Flag';
+    btnFlag.classList.toggle('flagged', isFlagged);
+  }
 }
 
 /* ── Card controls ─────────────────────────────────────────────────────────── */
@@ -708,7 +845,7 @@ document.addEventListener('keydown', e => {
     case 's': case 'S': shuffleCards(); break;
   }
 });
-// FIX: only handle Enter here (Space handled by global handler above to avoid double-flip)
+// Only handle Enter here (Space handled by global handler above to avoid double-flip)
 el.cardInner.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); flipCard(); }
 });
@@ -727,6 +864,167 @@ function clearMsg(elId) {
   m.textContent = '';
   m.className   = 'inline-msg';
 }
+
+/* ── Flag count UI ─────────────────────────────────────────────────────────── */
+function updateFlagCountUI(count) {
+  const bar   = $('flagged-bar');
+  const badge = $('flagged-count-badge');
+  badge.textContent = `\u2605 Flagged: ${count}`;
+  bar.style.display = count > 0 ? '' : 'none';
+}
+
+/* ── Toggle flag for current card ─────────────────────────────────────────── */
+async function toggleFlag() {
+  if (!cards.length) return;
+  const card   = cards[idx];
+  const cardId = card.origIdx;
+
+  try {
+    const res  = await fetch(`/flag/${cardId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word: card.front, definition: card.back }),
+    });
+    const data = await res.json();
+
+    if (data.is_flagged) {
+      flaggedSet.add(cardId);
+    } else {
+      flaggedSet.delete(cardId);
+    }
+
+    updateFlagCountUI(data.count);
+    render(); // re-render to update flag button + card border
+  } catch {
+    showStatus('Could not update flag — please try again');
+  }
+}
+
+/* ── Clear all flags ───────────────────────────────────────────────────────── */
+async function clearAllFlags() {
+  try {
+    await fetch('/clear_flags', { method: 'POST' });
+    flaggedSet.clear();
+    updateFlagCountUI(0);
+    render();
+    showStatus('All flags cleared');
+  } catch {
+    showStatus('Could not clear flags — please try again');
+  }
+}
+
+/* ── Review modal ──────────────────────────────────────────────────────────── */
+async function openReviewModal() {
+  try {
+    const res  = await fetch('/get_flagged_cards', { method: 'POST' });
+    const data = await res.json();
+
+    const listEl = $('review-list');
+    listEl.innerHTML = '';
+
+    if (!data.cards || data.cards.length === 0) {
+      listEl.innerHTML = '<div class="review-empty">No flagged cards found.</div>';
+    } else {
+      data.cards.forEach(card => {
+        const item = document.createElement('div');
+        item.className = 'review-item';
+        item.innerHTML = `
+          <label class="review-label">
+            <input type="checkbox" class="review-checkbox" value="${card.card_id}" checked>
+            <span><span class="review-word">${escHtml(card.word)}</span>
+            <span class="review-def"> &mdash; ${escHtml(card.definition)}</span></span>
+          </label>`;
+        listEl.appendChild(item);
+      });
+      // Attach change listeners after rendering
+      listEl.querySelectorAll('.review-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateDownloadCount);
+      });
+    }
+
+    clearMsg('review-msg');
+    updateDownloadCount();
+    openModal('review');
+  } catch {
+    showStatus('Could not load flagged cards — please try again');
+  }
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function updateDownloadCount() {
+  const count = $('review-list').querySelectorAll('.review-checkbox:checked').length;
+  $('btn-download-selected').innerHTML = `&#8659; Download Selected (${count})`;
+}
+
+function selectAllReview() {
+  $('review-list').querySelectorAll('.review-checkbox').forEach(cb => { cb.checked = true; });
+  updateDownloadCount();
+}
+
+function deselectAllReview() {
+  $('review-list').querySelectorAll('.review-checkbox').forEach(cb => { cb.checked = false; });
+  updateDownloadCount();
+}
+
+async function downloadSelected() {
+  const checked = $('review-list').querySelectorAll('.review-checkbox:checked');
+  if (checked.length === 0) {
+    setMsg('review-msg', 'Please select at least one word to download.', 'err');
+    return;
+  }
+
+  const selectedIds = Array.from(checked).map(cb => parseInt(cb.value, 10));
+
+  try {
+    const res = await fetch('/download_review_list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selected_ids: selectedIds }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      setMsg('review-msg', data.error || 'Download failed.', 'err');
+      return;
+    }
+
+    const blob = await res.blob();
+    const cd   = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : 'review_list.csv';
+
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    closeModal('review');
+  } catch {
+    setMsg('review-msg', 'Network error during download.', 'err');
+  }
+}
+
+/* ── Review modal button wiring ────────────────────────────────────────────── */
+$('btn-download-review').addEventListener('click', openReviewModal);
+$('btn-clear-flags').addEventListener('click', clearAllFlags);
+$('btn-select-all').addEventListener('click', selectAllReview);
+$('btn-deselect-all').addEventListener('click', deselectAllReview);
+$('btn-download-selected').addEventListener('click', downloadSelected);
+$('btn-review-cancel').addEventListener('click', () => closeModal('review'));
+$('modal-review').addEventListener('click', e => {
+  if (e.target === $('modal-review')) closeModal('review');
+});
 
 /* ── Passcode flow ─────────────────────────────────────────────────────────── */
 $('btn-load-deck').addEventListener('click', () => {
@@ -810,7 +1108,7 @@ async function uploadFile(file) {
     setMsg('upload-msg', `✓ Loaded ${data.cards.length} cards from "${data.filename}"`, 'ok');
     setTimeout(() => {
       closeModal('upload');
-      applyDeck(data);
+      applyDeck(data); // isInit=false → clears flags
       showStatus('Temporary deck loaded — will revert to default when session ends', 5000);
     }, 900);
   } catch {
@@ -823,9 +1121,23 @@ async function uploadFile(file) {
 /* ── Boot ──────────────────────────────────────────────────────────────────── */
 async function init() {
   try {
-    const res  = await fetch('/api/deck');
-    const data = await res.json();
-    applyDeck(data, true); // isInit=true → shows "Default deck loaded" toast
+    // Load deck and flagged state in parallel
+    const [deckRes, flagRes] = await Promise.all([
+      fetch('/api/deck'),
+      fetch('/get_flagged_cards', { method: 'POST' }),
+    ]);
+
+    const deckData = await deckRes.json();
+    const flagData = await flagRes.json();
+
+    // Restore flagged set from session
+    flaggedSet.clear();
+    if (flagData.cards && flagData.cards.length > 0) {
+      flagData.cards.forEach(c => flaggedSet.add(c.card_id));
+      updateFlagCountUI(flagData.count);
+    }
+
+    applyDeck(deckData, true); // isInit=true → keeps flags, shows "Default deck loaded" toast
   } catch {
     el.deckName.textContent = 'Could not connect to server';
   } finally {

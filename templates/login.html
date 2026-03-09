@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Flashcards &mdash; Access</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:    #6c63ff;
+      --bg:         #0f0f1a;
+      --surface:    #16213e;
+      --text:       #eef0ff;
+      --muted:      #7a869a;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 15% 15%, rgba(108,99,255,.14) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 85%, rgba(72,207,173,.09) 0%, transparent 55%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid rgba(108,99,255,.3);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.6);
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -.3px;
+      background: linear-gradient(135deg, #c4b5fd, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: .4rem;
+    }
+
+    .login-subtitle {
+      font-size: .85rem;
+      color: var(--muted);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: .45rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .form-label {
+      font-size: .78rem;
+      color: var(--muted);
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .form-input {
+      background: var(--bg);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 1rem;
+      padding: .7rem .9rem;
+      outline: none;
+      transition: border-color .2s;
+      width: 100%;
+    }
+    .form-input:focus { border-color: var(--primary); }
+
+    .btn-submit {
+      width: 100%;
+      padding: .75rem;
+      background: linear-gradient(135deg, var(--primary), #7c6af5);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter .16s, transform .1s;
+    }
+    .btn-submit:hover { filter: brightness(1.1); }
+    .btn-submit:active { transform: scale(.97); }
+
+    .attempts-counter {
+      text-align: center;
+      font-size: .8rem;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+    }
+    .attempts-counter.warning { color: #fcd34d; }
+
+    .alert {
+      font-size: .82rem;
+      border-radius: 8px;
+      padding: .55rem .8rem;
+      margin-bottom: 1rem;
+    }
+    .alert-error {
+      background: rgba(239,68,68,.13);
+      color: #fca5a5;
+      border: 1px solid rgba(239,68,68,.3);
+    }
+    .alert-locked {
+      background: rgba(239,68,68,.12);
+      color: #fca5a5;
+      border: 1px solid rgba(239,68,68,.35);
+      text-align: center;
+      padding: 1.5rem 1rem;
+      border-radius: 12px;
+    }
+    .lock-icon {
+      font-size: 2.5rem;
+      margin-bottom: .75rem;
+      display: block;
+    }
+    .lock-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: .5rem;
+    }
+    .lock-msg {
+      font-size: .83rem;
+      color: #fca5a5;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-title">&#128218; Flashcards</div>
+      <div class="login-subtitle">Enter your access passcode to continue</div>
+    </div>
+
+    {% if locked %}
+      <div class="alert-locked">
+        <span class="lock-icon">&#128274;</span>
+        <div class="lock-title">Access Denied</div>
+        <p class="lock-msg">Too many failed attempts. Please contact the administrator.</p>
+      </div>
+    {% else %}
+      {% if error %}
+        <div class="alert alert-error">&#10007; Incorrect passcode. Please try again.</div>
+      {% endif %}
+
+      <div class="attempts-counter {% if remaining is defined and remaining <= 2 %}warning{% endif %}">
+        Attempts remaining: {{ remaining }} of {{ max_attempts }}
+      </div>
+
+      <form method="POST" action="/login">
+        <div class="form-group">
+          <label class="form-label" for="passcode">Access Passcode</label>
+          <input class="form-input" type="password" id="passcode" name="passcode"
+                 placeholder="&bull;&bull;&bull;&bull;" maxlength="20" autocomplete="off" autofocus>
+        </div>
+        <button class="btn-submit" type="submit">Continue &#8594;</button>
+      </form>
+    {% endif %}
+  </div>
+</body>
+</html>

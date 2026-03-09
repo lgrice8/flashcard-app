@@ -10,8 +10,9 @@ import csv
 import io
 import json
 import os
+from datetime import datetime
 
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, make_response, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
@@ -19,9 +20,16 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 PASSCODE = "4321"
+ACCESS_PASSCODE = "3911"
+MAX_ACCESS_ATTEMPTS = 5
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def is_production():
+    """Returns True if running on Render (production), False if local."""
+    return bool(os.environ.get('RENDER')) or bool(os.environ.get('PORT'))
+
 
 def load_config() -> dict:
     try:
@@ -86,6 +94,56 @@ def load_default_deck() -> dict:
 default_deck: dict = load_default_deck()
 
 
+# ── Authentication ─────────────────────────────────────────────────────────────
+
+@app.before_request
+def check_authentication():
+    """Require access passcode only on Render (production)."""
+    if is_production():
+        if request.endpoint not in ('login', 'static') and not session.get('authenticated'):
+            return redirect(url_for('login'))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    # Already authenticated → go to app
+    if session.get('authenticated'):
+        return redirect(url_for('index'))
+
+    attempts = session.get('access_attempts', 0)
+    locked = attempts >= MAX_ACCESS_ATTEMPTS
+
+    if request.method == 'POST':
+        if locked:
+            return render_template('login.html', locked=True, max_attempts=MAX_ACCESS_ATTEMPTS)
+
+        passcode = request.form.get('passcode', '').strip()
+        if passcode == ACCESS_PASSCODE:
+            session['authenticated'] = True
+            session.pop('access_attempts', None)
+            return redirect(url_for('index'))
+        else:
+            session['access_attempts'] = attempts + 1
+            new_attempts = session['access_attempts']
+            locked = new_attempts >= MAX_ACCESS_ATTEMPTS
+            remaining = MAX_ACCESS_ATTEMPTS - new_attempts
+            return render_template(
+                'login.html',
+                error=True,
+                locked=locked,
+                remaining=remaining,
+                max_attempts=MAX_ACCESS_ATTEMPTS,
+            )
+
+    remaining = MAX_ACCESS_ATTEMPTS - attempts
+    return render_template(
+        'login.html',
+        locked=locked,
+        remaining=remaining,
+        max_attempts=MAX_ACCESS_ATTEMPTS,
+    )
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -145,6 +203,72 @@ def api_reset():
     """Clear session deck; caller reverts to default."""
     session.pop("deck", None)
     return jsonify({**default_deck, "is_temporary": False})
+
+
+# ── Flag routes ────────────────────────────────────────────────────────────────
+
+@app.route("/flag/<int:card_id>", methods=["POST"])
+def toggle_flag(card_id):
+    data = request.get_json(silent=True) or {}
+    word = data.get("word", "")
+    definition = data.get("definition", "")
+
+    flagged = session.get("flagged_cards", [])
+    existing_idx = next((i for i, c in enumerate(flagged) if c["card_id"] == card_id), None)
+
+    if existing_idx is not None:
+        flagged.pop(existing_idx)
+        is_flagged = False
+    else:
+        flagged.append({"card_id": card_id, "word": word, "definition": definition})
+        is_flagged = True
+
+    session["flagged_cards"] = flagged
+    session.modified = True
+    return jsonify({"is_flagged": is_flagged, "count": len(flagged)})
+
+
+@app.route("/get_flagged_cards", methods=["POST"])
+def get_flagged_cards():
+    flagged = session.get("flagged_cards", [])
+    return jsonify({"cards": flagged, "count": len(flagged)})
+
+
+@app.route("/download_review_list", methods=["POST"])
+def download_review_list():
+    data = request.get_json(silent=True) or {}
+    selected_ids = set(data.get("selected_ids", []))
+
+    if not selected_ids:
+        return jsonify({"error": "Please select at least one word to download"}), 400
+
+    flagged = session.get("flagged_cards", [])
+    selected = [c for c in flagged if c["card_id"] in selected_ids]
+
+    if not selected:
+        return jsonify({"error": "Please select at least one word to download"}), 400
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Word", "Definition"])
+    for card in selected:
+        writer.writerow([card["word"], card["definition"]])
+
+    csv_content = output.getvalue()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"review_list_{timestamp}.csv"
+
+    response = make_response(csv_content)
+    response.headers["Content-Type"] = "text/csv; charset=utf-8"
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@app.route("/clear_flags", methods=["POST"])
+def clear_flags():
+    session.pop("flagged_cards", None)
+    session.modified = True
+    return jsonify({"success": True, "count": 0})
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
