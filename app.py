@@ -151,12 +151,21 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/game")
-def game():
+def get_deck_data() -> list[dict]:
+    """Return active deck as [{word, synonyms}] for game/quiz templates."""
     active = session["deck"] if "deck" in session else default_deck
     cards = active.get("cards", [])
-    deck_data = [{"word": c["front"], "synonyms": [c["back"]]} for c in cards if c.get("front")]
-    return render_template("game.html", deck_data=deck_data)
+    return [{"word": c["front"], "synonyms": [c["back"]]} for c in cards if c.get("front")]
+
+
+@app.route("/game")
+def game():
+    return render_template("game.html", deck_data=get_deck_data())
+
+
+@app.route("/quiz")
+def quiz():
+    return render_template("quiz.html", deck_data=get_deck_data())
 
 
 @app.route("/api/deck")
