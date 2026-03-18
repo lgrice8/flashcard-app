@@ -150,7 +150,7 @@
     .progress-label {
       display: flex; justify-content: space-between; align-items: center;
     }
-    .progress-text { color: var(--muted); font-size: .83rem; }
+    .progress-text { color: var(--muted); font-size: 1rem; }
     .shuffle-badge {
       font-size: .75rem; color: var(--secondary);
       opacity: 0; transition: opacity .3s;
@@ -232,12 +232,15 @@
     }
     .card-text {
       color: #fff;
-      font-size: clamp(1rem,3.5vw,1.75rem);
+      font-size: clamp(1.5rem,4.5vw,2.4rem);
       font-weight: 700;
       text-align: center; line-height: 1.45;
       max-height: 75%; overflow-y: auto; width: 100%;
       scrollbar-width: thin;
       scrollbar-color: rgba(255,255,255,.25) transparent;
+    }
+    .card-face.card-back .card-text {
+      font-size: clamp(1.25rem,3.8vw,2rem);
     }
     .card-hint {
       position: absolute; bottom: 15px;
@@ -302,13 +305,14 @@
     /* ── Buttons ── */
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 11px 22px;
+      padding: 12px 22px;
       border: none; border-radius: 10px;
-      font-size: .88rem; font-weight: 600;
+      font-size: 1rem; font-weight: 600;
       cursor: pointer;
       transition: all .16s ease;
       white-space: nowrap;
       user-select: none; -webkit-user-select: none;
+      min-height: 44px;
     }
     .btn:active { transform: scale(.96); }
     .btn:disabled { opacity: .35; cursor: default; transform: none; }
@@ -327,8 +331,8 @@
     }
     .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,.12); color: var(--text); }
 
-    .btn-sm { padding: 7px 14px; font-size: .8rem; border-radius: 8px; }
-    .btn-nav { padding: 13px 30px; font-size: .95rem; border-radius: 12px; }
+    .btn-sm { padding: 7px 14px; font-size: .85rem; border-radius: 8px; min-height: 36px; }
+    .btn-nav { padding: 13px 30px; font-size: 1.1rem; border-radius: 12px; min-height: 48px; }
 
     /* ── Nav rows ── */
     .nav-row {
@@ -484,10 +488,63 @@
       font-size: .88rem;
     }
 
+    /* ── Deck switcher row ── */
+    .deck-switcher {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,.06);
+      margin-top: 6px;
+    }
+    .deck-switcher-label {
+      font-size: .78rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .deck-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .btn-deck {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 100px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+      min-height: 32px;
+    }
+    .btn-deck:hover {
+      background: rgba(108,99,255,.2);
+      border-color: rgba(108,99,255,.4);
+      color: var(--text);
+    }
+    .btn-deck.active {
+      background: rgba(108,99,255,.3);
+      border-color: var(--primary);
+      color: #c4b5fd;
+    }
+    .btn-deck.active::before { content: '✓ '; }
+    .btn-deck.temp-deck { border-color: rgba(245,158,11,.4); color: #fcd34d; }
+    .btn-deck.temp-deck.active { background: rgba(245,158,11,.2); }
+
     @media (max-width: 420px) {
       .btn-nav { padding: 12px 22px; }
       .card-face { padding: 22px; }
       .deck-bar { padding: 9px 14px; }
+      .card-text { font-size: clamp(1.3rem, 5.5vw, 2rem) !important; }
+      .card-face.card-back .card-text { font-size: clamp(1.1rem, 4.5vw, 1.6rem) !important; }
     }
   </style>
 </head>
@@ -509,33 +566,40 @@
 <div id="screen-study">
 
   <!-- Sticky deck bar -->
-  <div class="deck-bar">
-    <div class="deck-bar-left">
-      <div class="deck-badge" id="deck-badge">
-        <span class="dot" id="badge-dot"></span>
-        <span id="badge-label">Current deck</span>
+  <div class="deck-bar" style="flex-direction:column;align-items:stretch;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div class="deck-bar-left">
+        <div class="deck-badge" id="deck-badge">
+          <span class="dot" id="badge-dot"></span>
+          <span id="badge-label">Current deck</span>
+        </div>
+        <span class="deck-bar-info">
+          <strong id="deck-name">—</strong>
+          &nbsp;&middot;&nbsp;
+          <strong id="deck-count">0</strong> cards
+        </span>
+        <span class="temp-notice" id="temp-notice" style="display:none">
+          &#9203; Temporary deck active &mdash; will reset to default on next visit
+        </span>
       </div>
-      <span class="deck-bar-info">
-        <strong id="deck-name">—</strong>
-        &nbsp;&middot;&nbsp;
-        <strong id="deck-count">0</strong> cards
-      </span>
-      <span class="temp-notice" id="temp-notice" style="display:none">
-        &#9203; Temporary deck active &mdash; will reset to default on next visit
-      </span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <!-- Flagged bar (hidden until cards are flagged) -->
+        <div class="flagged-bar" id="flagged-bar" style="display:none">
+          <span class="flagged-count-badge" id="flagged-count-badge">&#9733; Flagged: 0</span>
+          <button class="btn btn-ghost btn-sm" id="btn-download-review">&#8659; Download</button>
+          <button class="btn btn-ghost btn-sm" id="btn-clear-flags">&#10005; Clear Flags</button>
+        </div>
+        <a href="/quiz" class="btn btn-ghost btn-sm">&#128218; Quiz</a>
+        <a href="/game" class="btn btn-ghost btn-sm">&#9654; Block Blast</a>
+        <button class="btn btn-ghost btn-sm" id="btn-load-deck">
+          &#8679; Load New Deck
+        </button>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <!-- Flagged bar (hidden until cards are flagged) -->
-      <div class="flagged-bar" id="flagged-bar" style="display:none">
-        <span class="flagged-count-badge" id="flagged-count-badge">&#9733; Flagged: 0</span>
-        <button class="btn btn-ghost btn-sm" id="btn-download-review">&#8659; Download</button>
-        <button class="btn btn-ghost btn-sm" id="btn-clear-flags">&#10005; Clear Flags</button>
-      </div>
-      <a href="/quiz" class="btn btn-ghost btn-sm">&#128218; Quiz</a>
-      <a href="/game" class="btn btn-ghost btn-sm">&#9654; Block Blast</a>
-      <button class="btn btn-ghost btn-sm" id="btn-load-deck">
-        &#8679; Load New Deck
-      </button>
+    <!-- Deck switcher row (shown when multiple decks available) -->
+    <div class="deck-switcher" id="deck-switcher" style="display:none">
+      <span class="deck-switcher-label">Available Decks:</span>
+      <div class="deck-btns" id="deck-btns"></div>
     </div>
   </div>
 
@@ -683,7 +747,9 @@
 let cards    = [];
 let original = [];
 let idx      = 0;
-let flaggedSet = new Set(); // Set of origIdx values for flagged cards
+let flaggedSet      = new Set();  // origIdx values flagged in current deck
+let currentDeckKey  = null;       // active deck key ('__uploaded__' or filename)
+let allFlaggedCards = [];         // all server-side flagged cards (persists across switches)
 
 /* ── DOM helpers ───────────────────────────────────────────────────────────── */
 const $  = id => document.getElementById(id);
@@ -709,6 +775,8 @@ const el = {
   btnFlip:      $('btn-flip'),
   btnShuffle:   $('btn-shuffle'),
   kbRow:        $('kb-row'),
+  deckSwitcher: $('deck-switcher'),
+  deckBtns:     $('deck-btns'),
 };
 
 /* ── Hide keyboard hint on touch-only devices ──────────────────────────────── */
@@ -736,19 +804,25 @@ function triggerCardAnim() {
   el.cardInner.classList.add('switching');
 }
 
+/* ── Rebuild flaggedSet for the given deck key ─────────────────────────────── */
+function buildFlaggedSet(deckKey) {
+  flaggedSet.clear();
+  allFlaggedCards
+    .filter(c => c.deck === deckKey)
+    .forEach(c => flaggedSet.add(c.card_id));
+}
+
 /* ── Apply deck data from API ──────────────────────────────────────────────── */
-function applyDeck(data, isInit = false) {
+function applyDeck(data) {
+  currentDeckKey = data.current_deck || data.filename;
   // Assign stable origIdx to each card for flagging purposes
   original = (data.cards || []).map((c, i) => ({ ...c, origIdx: i }));
   cards    = [...original];
   idx      = 0;
 
-  // Clear flags when switching decks (not on initial load)
-  if (!isInit) {
-    fetch('/clear_flags', { method: 'POST' }).catch(() => {});
-    flaggedSet.clear();
-    updateFlagCountUI(0);
-  }
+  // Rebuild flag display for this deck (server flags are preserved)
+  buildFlaggedSet(currentDeckKey);
+  updateFlagCountUI(allFlaggedCards.length);
 
   const n    = cards.length;
   const name = data.filename || 'unknown';
@@ -762,14 +836,66 @@ function applyDeck(data, isInit = false) {
     el.tempNotice.style.display = '';
   } else {
     el.badgeDot.className     = 'dot';
-    el.badgeLabel.textContent = 'Default deck';
+    el.badgeLabel.textContent = 'Active deck';
     el.tempNotice.style.display = 'none';
-    if (isInit) showStatus(`Default deck loaded: ${name} — ${n} card${n !== 1 ? 's' : ''}`);
   }
 
   el.shuffleBadge.classList.remove('visible');
   unflip();
   render();
+}
+
+/* ── Build deck switcher buttons ───────────────────────────────────────────── */
+function buildDeckSwitcher(decksData) {
+  const { decks, current } = decksData;
+  if (!decks || decks.length <= 1) {
+    el.deckSwitcher.style.display = 'none';
+    return;
+  }
+
+  el.deckBtns.innerHTML = '';
+  decks.forEach(d => {
+    const key = d.key;
+    const btn = document.createElement('button');
+    const isActive = key === current;
+    btn.className = 'btn-deck'
+      + (d.is_temporary ? ' temp-deck' : '')
+      + (isActive ? ' active' : '');
+    btn.dataset.deckKey = key;
+    const displayName = d.filename.replace(/\.csv$/i, '');
+    btn.textContent = displayName;
+    btn.title = `${d.filename} — ${d.count} card${d.count !== 1 ? 's' : ''}`;
+    btn.addEventListener('click', () => switchDeck(key));
+    el.deckBtns.appendChild(btn);
+  });
+
+  el.deckSwitcher.style.display = '';
+}
+
+/* ── Update active state on deck switcher buttons ──────────────────────────── */
+function updateDeckSwitcherActive(deckKey) {
+  el.deckBtns.querySelectorAll('.btn-deck').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.deckKey === deckKey);
+  });
+}
+
+/* ── Switch to a different deck ────────────────────────────────────────────── */
+async function switchDeck(deckKey) {
+  if (deckKey === currentDeckKey) return;
+  try {
+    const res = await fetch('/api/switch_deck', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deck_key: deckKey }),
+    });
+    if (!res.ok) { showStatus('Could not switch deck — please try again'); return; }
+    const data = await res.json();
+    applyDeck(data);
+    updateDeckSwitcherActive(deckKey);
+    showStatus(`Switched to: ${data.filename}`, 2500);
+  } catch {
+    showStatus('Network error switching deck');
+  }
 }
 
 /* ── Render current card ───────────────────────────────────────────────────── */
@@ -884,17 +1010,21 @@ async function toggleFlag() {
     const res  = await fetch(`/flag/${cardId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ word: card.front, definition: card.back }),
+      body: JSON.stringify({ word: card.front, definition: card.back, deck: currentDeckKey }),
     });
     const data = await res.json();
 
     if (data.is_flagged) {
       flaggedSet.add(cardId);
+      allFlaggedCards.push({ card_id: cardId, word: card.front, definition: card.back, deck: currentDeckKey });
     } else {
       flaggedSet.delete(cardId);
+      allFlaggedCards = allFlaggedCards.filter(
+        c => !(c.card_id === cardId && c.deck === currentDeckKey)
+      );
     }
 
-    updateFlagCountUI(data.count);
+    updateFlagCountUI(allFlaggedCards.length);
     render(); // re-render to update flag button + card border
   } catch {
     showStatus('Could not update flag — please try again');
@@ -905,6 +1035,7 @@ async function toggleFlag() {
 async function clearAllFlags() {
   try {
     await fetch('/clear_flags', { method: 'POST' });
+    allFlaggedCards = [];
     flaggedSet.clear();
     updateFlagCountUI(0);
     render();
@@ -927,12 +1058,16 @@ async function openReviewModal() {
       listEl.innerHTML = '<div class="review-empty">No flagged cards found.</div>';
     } else {
       data.cards.forEach(card => {
+        const uid = `${card.deck || ''}___${card.card_id}`;
+        const deckLabel = card.deck && card.deck !== '__uploaded__'
+          ? ` <span style="font-size:.75rem;color:var(--muted)">[${escHtml(card.deck.replace(/\.csv$/i,''))}]</span>`
+          : '';
         const item = document.createElement('div');
         item.className = 'review-item';
         item.innerHTML = `
           <label class="review-label">
-            <input type="checkbox" class="review-checkbox" value="${card.card_id}" checked>
-            <span><span class="review-word">${escHtml(card.word)}</span>
+            <input type="checkbox" class="review-checkbox" value="${escHtml(uid)}" checked>
+            <span><span class="review-word">${escHtml(card.word)}</span>${deckLabel}
             <span class="review-def"> &mdash; ${escHtml(card.definition)}</span></span>
           </label>`;
         listEl.appendChild(item);
@@ -981,7 +1116,7 @@ async function downloadSelected() {
     return;
   }
 
-  const selectedIds = Array.from(checked).map(cb => parseInt(cb.value, 10));
+  const selectedIds = Array.from(checked).map(cb => cb.value);
 
   try {
     const res = await fetch('/download_review_list', {
@@ -1109,7 +1244,10 @@ async function uploadFile(file) {
     setMsg('upload-msg', `✓ Loaded ${data.cards.length} cards from "${data.filename}"`, 'ok');
     setTimeout(() => {
       closeModal('upload');
-      applyDeck(data); // isInit=false → clears flags
+      // Refresh deck list to include uploaded deck, then apply
+      fetch('/api/decks').then(r => r.json()).then(buildDeckSwitcher).catch(() => {});
+      applyDeck(data);
+      updateDeckSwitcherActive('__uploaded__');
       showStatus('Temporary deck loaded — will revert to default when session ends', 5000);
     }, 900);
   } catch {
@@ -1122,23 +1260,31 @@ async function uploadFile(file) {
 /* ── Boot ──────────────────────────────────────────────────────────────────── */
 async function init() {
   try {
-    // Load deck and flagged state in parallel
-    const [deckRes, flagRes] = await Promise.all([
+    // Load deck, flagged state, and deck list in parallel
+    const [deckRes, flagRes, decksRes] = await Promise.all([
       fetch('/api/deck'),
       fetch('/get_flagged_cards', { method: 'POST' }),
+      fetch('/api/decks'),
     ]);
 
-    const deckData = await deckRes.json();
-    const flagData = await flagRes.json();
+    const deckData  = await deckRes.json();
+    const flagData  = await flagRes.json();
+    const decksData = await decksRes.json();
 
-    // Restore flagged set from session
-    flaggedSet.clear();
-    if (flagData.cards && flagData.cards.length > 0) {
-      flagData.cards.forEach(c => flaggedSet.add(c.card_id));
-      updateFlagCountUI(flagData.count);
+    // Build allFlaggedCards from server state
+    allFlaggedCards = flagData.cards || [];
+    updateFlagCountUI(allFlaggedCards.length);
+
+    // Build deck switcher
+    buildDeckSwitcher(decksData);
+
+    // Apply active deck (rebuilds flaggedSet, updates UI)
+    applyDeck(deckData);
+
+    if (!deckData.is_temporary) {
+      const n = deckData.count || (deckData.cards || []).length;
+      showStatus(`Default deck loaded: ${deckData.filename} — ${n} card${n !== 1 ? 's' : ''}`);
     }
-
-    applyDeck(deckData, true); // isInit=true → keeps flags, shows "Default deck loaded" toast
   } catch {
     el.deckName.textContent = 'Could not connect to server';
   } finally {

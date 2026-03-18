@@ -172,10 +172,10 @@ header h1 {
 }
 
 .face-text {
-  font-size: clamp(1.3rem, 4vw, 2rem);
+  font-size: clamp(1.5rem, 4.5vw, 2.4rem);
   font-weight: 600;
   text-align: center;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .flip-hint {
@@ -202,9 +202,10 @@ header h1 {
   border: none;
   border-radius: 10px;
   cursor: pointer;
-  font-size: .9rem;
+  font-size: 1rem;
   font-weight: 600;
-  padding: .7rem 1.2rem;
+  padding: .75rem 1.25rem;
+  min-height: 44px;
   transition: opacity .15s, transform .1s, background .2s;
   touch-action: manipulation;
 }
@@ -368,7 +369,7 @@ header h1 {
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .card { height: 240px; }
-  .face-text { font-size: 1.4rem; }
+  .face-text { font-size: clamp(1.3rem, 5.5vw, 1.8rem); }
   .controls { flex-wrap: wrap; }
   .btn-flip { order: -1; flex: 100%; }
 }

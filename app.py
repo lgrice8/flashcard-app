@@ -1,14 +1,14 @@
 """
 Flashcard App
 -------------
-Per-session uploaded decks (temporary, reverts to default when session ends).
-Default deck loaded from config.json on startup.
+Multi-deck support: scans for CSV files on startup (up to 5, alphabetically).
+Uploaded decks stored per-session (temporary).
 Deployable to Render via gunicorn.
 """
 
 import csv
+import glob
 import io
-import json
 import os
 from datetime import datetime
 
@@ -18,7 +18,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 PASSCODE = "4321"
 ACCESS_PASSCODE = "3911"
 MAX_ACCESS_ATTEMPTS = 5
@@ -29,14 +28,6 @@ MAX_ACCESS_ATTEMPTS = 5
 def is_production():
     """Returns True if running on Render (production), False if local."""
     return bool(os.environ.get('RENDER')) or bool(os.environ.get('PORT'))
-
-
-def load_config() -> dict:
-    try:
-        with open(CONFIG_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"default_deck": ""}
 
 
 def parse_csv_bytes(raw_bytes: bytes) -> list[dict]:
@@ -68,30 +59,67 @@ def parse_csv_bytes(raw_bytes: bytes) -> list[dict]:
     return cards
 
 
-def load_default_deck() -> dict:
-    config = load_config()
-    filename = config.get("default_deck", "")
-    if not filename:
-        return {"filename": None, "cards": []}
+def load_all_decks() -> dict:
+    """Scan BASE_DIR for CSV files, load up to 5 alphabetically."""
+    pattern = os.path.join(BASE_DIR, "*.csv")
+    csv_files = sorted(glob.glob(pattern))[:5]
 
-    filepath = os.path.join(BASE_DIR, filename)
-    if not os.path.exists(filepath):
-        print(f"  Warning: default deck '{filename}' not found at {filepath}")
-        return {"filename": None, "cards": []}
+    decks = {}
+    for filepath in csv_files:
+        filename = os.path.basename(filepath)
+        try:
+            with open(filepath, "rb") as f:
+                cards = parse_csv_bytes(f.read())
+            if cards:
+                decks[filename] = {"cards": cards, "count": len(cards)}
+                n = len(cards)
+                print(f'  Deck loaded: "{filename}" ({n} card{"s" if n != 1 else ""})')
+        except Exception as exc:
+            print(f'  Warning: could not load "{filename}" — {exc}')
 
-    try:
-        with open(filepath, "rb") as f:
-            cards = parse_csv_bytes(f.read())
-        n = len(cards)
-        print(f'  Default deck loaded: "{filename}" ({n} card{"s" if n != 1 else ""})')
-        return {"filename": filename, "cards": cards}
-    except Exception as exc:
-        print(f"  Warning: could not load default deck — {exc}")
-        return {"filename": None, "cards": []}
+    return decks
 
 
-# Load once at startup (shared, read-only reference)
-default_deck: dict = load_default_deck()
+# Load all decks at startup (shared, read-only)
+ALL_DECKS: dict = load_all_decks()
+DEFAULT_DECK: str | None = sorted(ALL_DECKS.keys())[0] if ALL_DECKS else None
+
+
+def get_current_deck_name() -> str | None:
+    """Get active deck key from session, falling back to default."""
+    current = session.get("current_deck")
+    if current == "__uploaded__" and "deck" in session:
+        return "__uploaded__"
+    if current and current in ALL_DECKS:
+        return current
+    return DEFAULT_DECK
+
+
+def get_current_deck_data() -> dict:
+    """Return active deck as {filename, cards, count, is_temporary, current_deck}."""
+    current = get_current_deck_name()
+
+    if current == "__uploaded__" and "deck" in session:
+        d = session["deck"]
+        return {
+            "filename": d["filename"],
+            "cards": d["cards"],
+            "count": len(d["cards"]),
+            "is_temporary": True,
+            "current_deck": "__uploaded__",
+        }
+
+    if current and current in ALL_DECKS:
+        d = ALL_DECKS[current]
+        return {
+            "filename": current,
+            "cards": d["cards"],
+            "count": d["count"],
+            "is_temporary": False,
+            "current_deck": current,
+        }
+
+    return {"filename": None, "cards": [], "count": 0, "is_temporary": False, "current_deck": None}
 
 
 # ── Authentication ─────────────────────────────────────────────────────────────
@@ -106,7 +134,6 @@ def check_authentication():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Already authenticated → go to app
     if session.get('authenticated'):
         return redirect(url_for('index'))
 
@@ -153,8 +180,8 @@ def index():
 
 def get_deck_data() -> list[dict]:
     """Return active deck as [{word, synonyms}] for game/quiz templates."""
-    active = session["deck"] if "deck" in session else default_deck
-    cards = active.get("cards", [])
+    deck = get_current_deck_data()
+    cards = deck.get("cards", [])
     return [{"word": c["front"], "synonyms": [c["back"]]} for c in cards if c.get("front")]
 
 
@@ -171,9 +198,60 @@ def quiz():
 @app.route("/api/deck")
 def api_deck():
     """Return the active deck for this session."""
+    return jsonify(get_current_deck_data())
+
+
+@app.route("/api/decks")
+def api_decks():
+    """Return list of all available decks plus the active deck key."""
+    decks = [
+        {"filename": k, "count": v["count"], "is_temporary": False, "key": k}
+        for k, v in ALL_DECKS.items()
+    ]
+    # Include uploaded deck if present in session
     if "deck" in session:
-        return jsonify({**session["deck"], "is_temporary": True})
-    return jsonify({**default_deck, "is_temporary": False})
+        uploaded = session["deck"]
+        decks.append({
+            "filename": uploaded["filename"],
+            "count": len(uploaded["cards"]),
+            "is_temporary": True,
+            "key": "__uploaded__",
+        })
+    current = get_current_deck_name()
+    return jsonify({"decks": decks, "current": current, "default": DEFAULT_DECK})
+
+
+@app.route("/api/switch_deck", methods=["POST"])
+def api_switch_deck():
+    """Switch the active deck for this session."""
+    data = request.get_json(silent=True) or {}
+    deck_key = data.get("deck_key", "")
+
+    if deck_key == "__uploaded__":
+        if "deck" in session:
+            session["current_deck"] = "__uploaded__"
+            d = session["deck"]
+            return jsonify({
+                "filename": d["filename"],
+                "cards": d["cards"],
+                "count": len(d["cards"]),
+                "is_temporary": True,
+                "current_deck": "__uploaded__",
+            })
+        return jsonify({"error": "No uploaded deck in session"}), 400
+
+    if deck_key in ALL_DECKS:
+        session["current_deck"] = deck_key
+        d = ALL_DECKS[deck_key]
+        return jsonify({
+            "filename": deck_key,
+            "cards": d["cards"],
+            "count": d["count"],
+            "is_temporary": False,
+            "current_deck": deck_key,
+        })
+
+    return jsonify({"error": "Deck not found"}), 400
 
 
 @app.route("/api/verify-passcode", methods=["POST"])
@@ -200,18 +278,25 @@ def api_upload():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    # Store only in session — not persisted globally
     session["deck"] = {"filename": uploaded.filename, "cards": cards}
+    session["current_deck"] = "__uploaded__"
     n = len(cards)
     print(f'  Session deck: "{uploaded.filename}" ({n} card{"s" if n != 1 else ""})')
-    return jsonify({"filename": uploaded.filename, "cards": cards, "is_temporary": True})
+    return jsonify({
+        "filename": uploaded.filename,
+        "cards": cards,
+        "count": n,
+        "is_temporary": True,
+        "current_deck": "__uploaded__",
+    })
 
 
 @app.route("/api/reset", methods=["POST"])
 def api_reset():
-    """Clear session deck; caller reverts to default."""
+    """Clear session deck; reverts to default."""
     session.pop("deck", None)
-    return jsonify({**default_deck, "is_temporary": False})
+    session.pop("current_deck", None)
+    return jsonify(get_current_deck_data())
 
 
 # ── Flag routes ────────────────────────────────────────────────────────────────
@@ -221,15 +306,20 @@ def toggle_flag(card_id):
     data = request.get_json(silent=True) or {}
     word = data.get("word", "")
     definition = data.get("definition", "")
+    deck = data.get("deck", "")  # deck key for namespacing flags
 
     flagged = session.get("flagged_cards", [])
-    existing_idx = next((i for i, c in enumerate(flagged) if c["card_id"] == card_id), None)
+    existing_idx = next(
+        (i for i, c in enumerate(flagged)
+         if c["card_id"] == card_id and c.get("deck") == deck),
+        None
+    )
 
     if existing_idx is not None:
         flagged.pop(existing_idx)
         is_flagged = False
     else:
-        flagged.append({"card_id": card_id, "word": word, "definition": definition})
+        flagged.append({"card_id": card_id, "word": word, "definition": definition, "deck": deck})
         is_flagged = True
 
     session["flagged_cards"] = flagged
@@ -246,13 +336,17 @@ def get_flagged_cards():
 @app.route("/download_review_list", methods=["POST"])
 def download_review_list():
     data = request.get_json(silent=True) or {}
-    selected_ids = set(data.get("selected_ids", []))
+    selected_uids = set(data.get("selected_ids", []))  # composite "deck___cardid" strings
 
-    if not selected_ids:
+    if not selected_uids:
         return jsonify({"error": "Please select at least one word to download"}), 400
 
     flagged = session.get("flagged_cards", [])
-    selected = [c for c in flagged if c["card_id"] in selected_ids]
+    selected = []
+    for c in flagged:
+        uid = f"{c.get('deck', '')}___{c['card_id']}"
+        if uid in selected_uids:
+            selected.append(c)
 
     if not selected:
         return jsonify({"error": "Please select at least one word to download"}), 400
@@ -286,9 +380,14 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print()
     print("=" * 52)
-    print("  Flashcard App")
+    print("  Flashcard App — Multi-Deck")
     print("=" * 52)
     print(f"  http://localhost:{port}")
+    if DEFAULT_DECK:
+        print(f"  Default deck : {DEFAULT_DECK}")
+    else:
+        print("  Warning: No valid CSV decks found!")
+    print(f"  Decks loaded : {len(ALL_DECKS)}")
     print("=" * 52)
     print()
     app.run(host="0.0.0.0", port=port, debug=False)
